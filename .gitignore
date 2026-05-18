@@ -1,0 +1,13 @@
+# Mengabaikan virtual environment
+venv/
+env/
+
+# Mengabaikan file rahasia
+.env
+
+# Mengabaikan cache Python
+__pycache__/
+*.pyc
+
+# Mengabaikan data database lokal (jika ada)
+postgres_data/

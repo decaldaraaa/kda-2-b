@@ -1,0 +1,24 @@
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.sql import func
+from database import Base
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    password_hash = Column(String) # Disimpan dalam bentuk hash (bukan plaintext)
+
+class LoginHistory(Base):
+    __tablename__ = "login_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Kolom ini nanti akan diisi teks acak hasil enkripsi AES-256
+    encrypted_ip = Column(String)
+    encrypted_user_agent = Column(String)
+    
+    login_time = Column(DateTime(timezone=True), server_default=func.now())
+    trust_score = Column(Integer) # Hasil perhitungan dari mesin Fuzzy Logic
+    status = Column(String) # Contoh: 'Trusted', 'Suspicious', 'Untrusted'
