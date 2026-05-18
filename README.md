@@ -1,5 +1,4 @@
-```markdown
-# Sistem Autentikasi Dinamis - Backend (Kelompok 2 - B)
+## Sistem Autentikasi Dinamis - Backend (Kelompok 2 - B)
 
 Repositori ini berisi kode *backend* untuk Sistem Autentikasi Dinamis menggunakan **FastAPI**, **PostgreSQL (Docker)**, **Scikit-Fuzzy**, dan **Enkripsi AES-256**. 
 
