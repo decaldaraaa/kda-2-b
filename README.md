@@ -66,17 +66,4 @@ Kamu bisa langsung mengetes *endpoint* `/login/` melalui antarmuka Swagger UI te
 **Catatan untuk Tim:**
 
 * Database Schema akan ter-generate secara otomatis saat Uvicorn pertama kali dijalankan.
-<<<<<<< HEAD
-
 * Pastikan selalu bekerja di *branch* masing-masing (misal: `feature/frontend-nextjs`) sebelum melakukan *commit*.
-
-```
-=======
-* Pastikan selalu bekerja di *branch* masing-masing (misal: `feature/frontend-nextjs`) sebelum melakukan *commit*.
-
-```
-
-Jika semuanya sudah di-*push*, ini adalah *milestone* yang sangat solid! Anda bisa beristirahat sejenak sebelum bersiap menghadapi tantangan merangkai UI/UX di *frontend* dengan Next.js. Beri tahu saya jika proses *push* ke repositorinya berjalan lancar!
-
-```
->>>>>>> d40eba4b0e27b9b705dea14fb15a28d15074bdf6
