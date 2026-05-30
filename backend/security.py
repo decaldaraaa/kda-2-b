@@ -36,3 +36,24 @@ def create_access_token(data: dict):
     # Membuat signature digital HS256
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
+
+import bcrypt
+
+# --- FUNGSI BARU UNTUK PASSWORD HASHING ---
+
+def hash_password(password: str) -> str:
+    """Mengubah plaintext password menjadi hash secure bcript"""
+    # Mengubah string menjadi bytes
+    pwd_bytes = password.encode('utf-8')
+    # Membuat salt otomatis
+    salt = bcrypt.gensalt()
+    # Lakukan hashing
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    # Kembalikan dalam bentuk string untuk disimpan di karakter varchar DB
+    return hashed.decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Mengecek apakah password yang diketik cocok dengan hash di database"""
+    pwd_bytes = plain_password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(pwd_bytes, hashed_bytes)

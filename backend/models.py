@@ -4,10 +4,11 @@ from database import Base
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    password_hash = Column(String) # Disimpan dalam bentuk hash (bukan plaintext)
+    password_hash = Column(String)
+    role = Column(String, default="employee") # <-- TAMBAHKAN BARIS INI
 
 class LoginHistory(Base):
     __tablename__ = "login_history"

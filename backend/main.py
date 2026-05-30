@@ -60,9 +60,31 @@ def create_dummy_history(
         }
     }
 
+@app.post("/register/")
+def register_user(username: str, password: str, db: Session = Depends(get_db)):
+    # 1. Cek apakah username sudah pernah terdaftar
+    existing_user = db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username sudah digunakan oleh orang lain")
+    
+    # 2. Amankan password menggunakan bcrypt hash sebelum disimpan
+    hashed_pwd = security.hash_password(password)
+    
+    # 3. Simpan ke database
+    new_user = models.User(username=username, password_hash=hashed_pwd)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {
+        "pesan": f"User '{username}' berhasil didaftarkan!",
+        "status_password_di_database": "Terproteksi Bcrypt Hash Hash"
+    }
+
 @app.post("/login/")
 def login_dinamis(
     username: str, 
+    password: str,        # <-- TAMBAHKAN PARAMETER INI
     ip_address: str, 
     user_agent: str, 
     jml_gagal: int,
@@ -70,14 +92,16 @@ def login_dinamis(
     tingkat_anomali: int,
     db: Session = Depends(get_db)
 ):
-    # 1. Cek apakah user ada (simulasi sederhana)
+    # 1. Cek apakah user ada DAN pastikan password-nya cocok dengan hash di DB
     user = db.query(models.User).filter(models.User.username == username).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User tidak ditemukan")
-
-    # 2. Hitung Trust Score dengan Fuzzy Logic
-    skor_dinamis, status_login = fuzzy_engine.hitung_skor(jml_gagal, jml_ganti_ip, tingkat_anomali)
     
+    # Memanfaatkan fungsi verifikasi bcrypt baru kita
+    if not user or not security.verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Username atau password salah")
+
+    # 2. Hitung Trust Score dengan Fuzzy Logic (Sisa kode ke bawah tetap SAMA seperti sebelumnya)
+    skor_dinamis, status_login = fuzzy_engine.hitung_skor(jml_gagal, jml_ganti_ip, tingkat_anomali)
+
     # 3. Simpan riwayat login yang terenkripsi AES-256
     new_log = models.LoginHistory(
         user_id=user.id,
