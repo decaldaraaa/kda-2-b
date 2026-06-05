@@ -11,6 +11,7 @@ import smtplib # Impor library email
 from email.message import EmailMessage # Impor pembuat pesan
 import random # Impor generator angka acak
 import os
+from fastapi import Request
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -153,6 +154,16 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/login/")
+async def login_user(request: Request):
+    # Ekstraksi IP Publik secara faktual
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    
+    if forwarded_for:
+        # X-Forwarded-For bisa berisi daftar IP, ambil yang pertama (IP klien asli)
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.client.host
+
 def login_dinamis(req: UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == req.username).first()
     
