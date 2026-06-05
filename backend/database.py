@@ -3,9 +3,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables dari file .env
 load_dotenv()
 
+# Panggil NAMA VARIABEL-nya, bukan isinya
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Membuat engine koneksi ke PostgreSQL
