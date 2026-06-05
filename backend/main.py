@@ -13,6 +13,7 @@ import logging
 from email.message import EmailMessage # Impor pembuat pesan
 import random # Impor generator angka acak
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -242,16 +243,21 @@ async def login_dinamis(
             "role": user.role
         }
         
-    elif status_login == "Suspicious":
+elif status_login == "Suspicious":
         otp = str(random.randint(100000, 999999))
-        # PENTING: Gunakan sistem penyimpanan yang valid untuk production (misal: Redis atau DB), bukan dictionary lokal
+        
+        # PENTING: Gunakan sistem penyimpanan yang valid untuk production (misal: Redis atau DB)
         otp_storage[user.username] = otp 
+        
+        # Mendaftarkan task ke dalam antrean
         background_tasks.add_task(send_otp_email, user.email, otp)
 
-        # Ubah ke HTTP 403 agar Next.js catch block menangkap ini sebagai peringatan MFA
-        raise HTTPException(
+        # REVISI ARSITEKTURAL: Mengembalikan JSONResponse alih-alih melempar Exception
+        # Ini memastikan background_tasks tetap tereksekusi di server setelah status 403 dikirim ke Vercel.
+        return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN, 
-            detail=f"Terdeteksi anomali. OTP telah dikirim ke email Anda. (Skor: {skor_dinamis})"
+            content={"detail": f"Terdeteksi anomali. OTP telah dikirim ke email Anda. (Skor: {skor_dinamis})"},
+            background=background_tasks
         )
 
     else:
