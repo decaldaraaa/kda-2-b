@@ -1,6 +1,5 @@
-import { useRouter } from 'next/navigation';
 'use client';
-
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { ShieldCheck, ArrowRight, MailWarning, Shield, ArrowLeft } from 'lucide-react';
