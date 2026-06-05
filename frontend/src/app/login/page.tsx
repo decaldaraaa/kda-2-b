@@ -28,54 +28,51 @@ const handleLogin = async (e: React.FormEvent) => {
         body: JSON.stringify({ 
           username: username, 
           password: password
-          // ZERO-TRUST: Tidak ada lagi pengiriman jml_gagal atau anomali dari sini!
+          // ZERO-TRUST: Hanya mengirimkan kredensial.
         }) 
       });
 
       const data = await response.json();
       setIsLoading(false);
 
-      // KEPUTUSAN BERDASARKAN STATUS HTTP DARI BACKEND
       if (response.ok) {
-        // HTTP 200 (OK) -> TRUSTED STATUS
+        // TRUSTED STATUS
         localStorage.setItem("access_token", data.access_token);
-        
         const safeRole = (data.role || "employee").toLowerCase().trim();
         localStorage.setItem("user_role", safeRole); 
         localStorage.setItem("username", username);
 
         if (safeRole === "ceo") {
-            router.push("/dashboard");
-          } else {
-            router.push("/user-dashboard");
-          }
+          router.push("/dashboard");
+        } else {
+          router.push("/user-dashboard");
+        }
 
       } else {
-        // PENANGANAN PENOLAKAN DARI SERVER
+        // FILTER PENOLAKAN BERDASARKAN STATUS HTTP
         if (response.status === 401) {
             // Kredensial Salah
             alert(`Akses Ditolak: ${data.detail}`);
         } 
         else if (response.status === 403) {
             // SUSPICIOUS -> Backend memicu OTP
-            setLoginStep('mfa'); // Ubah UI terlebih dahulu
+            setLoginStep('mfa'); // 1. Ubah UI ke form OTP
             setTimeout(() => {
-                alert(`Peringatan: ${data.detail}`);
-            }, 100); // Beri waktu 100ms agar React selesai merender form baru
+                alert(`Peringatan: ${data.detail}`); // 2. Tampilkan pesan backend (tanpa hitungan gagal)
+            }, 100);
         } 
         else if (response.status === 423) {
             // UNTRUSTED -> Pemblokiran Keras
             alert(`🚨 TERKUNCI: ${data.detail}`);
         } 
         else {
-            // Error validasi (422) atau error server lain (500)
+            // Error lainnya
             alert(`Sistem merespons anomali: ${data.detail || "Kesalahan internal."}`);
         }
       }
 
     } catch (error) {
       setIsLoading(false);
-      // Ini hanya tereksekusi jika Render mati total atau internet terputus
       console.error(error);
       alert("Tidak dapat menghubungi server pengamanan. Periksa koneksi Anda.");
     }
