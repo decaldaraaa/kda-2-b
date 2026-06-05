@@ -174,7 +174,7 @@ async def login_dinamis(
     # Mengambil 10 log terakhir dari user ini
     recent_logs = db.query(models.LoginHistory).filter(
         models.LoginHistory.user_id == user.id
-    ).order_by(models.LoginHistory.timestamp.desc()).limit(10).all()
+    ).order_by(models.LoginHistory.login_time.desc()).limit(10).all()
 
     # Hitung berapa kali gagal berturut-turut di masa lalu
     jml_gagal = sum(1 for log in recent_logs if log.status in ["Failed", "Untrusted"])
