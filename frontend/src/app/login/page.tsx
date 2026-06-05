@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 'use client';
 
 import React, { useState } from 'react';
@@ -6,6 +7,7 @@ import { ShieldCheck, ArrowRight, MailWarning, Shield, ArrowLeft } from 'lucide-
 
 export default function LoginPage() {
   // State untuk form login
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
@@ -44,10 +46,10 @@ const handleLogin = async (e: React.FormEvent) => {
         localStorage.setItem("username", username);
 
         if (safeRole === "ceo") {
-          window.location.href = "/dashboard";
-        } else {
-          window.location.href = "/user-dashboard";
-        }
+            router.push("/dashboard");
+          } else {
+            router.push("/user-dashboard");
+          }
 
       } else {
         // PENANGANAN PENOLAKAN DARI SERVER
@@ -57,8 +59,10 @@ const handleLogin = async (e: React.FormEvent) => {
         } 
         else if (response.status === 403) {
             // SUSPICIOUS -> Backend memicu OTP
-            alert(`Peringatan: ${data.detail}`);
-            setLoginStep('mfa'); // Pindah ke UI input OTP
+            setLoginStep('mfa'); // Ubah UI terlebih dahulu
+            setTimeout(() => {
+                alert(`Peringatan: ${data.detail}`);
+            }, 100); // Beri waktu 100ms agar React selesai merender form baru
         } 
         else if (response.status === 423) {
             // UNTRUSTED -> Pemblokiran Keras
