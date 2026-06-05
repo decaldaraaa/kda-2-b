@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks # Tambahkan BackgroundTasks
+from fastapi import Request, HTTPException, Depends, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import datetime
@@ -154,35 +154,65 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/login/")
-async def login_user(request: Request):
-    # Ekstraksi IP Publik secara faktual
+async def login_dinamis(
+    req: UserLogin, # SEKARANG FRONTEND HANYA BOLEH MENGIRIM USERNAME & PASSWORD
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    # 1. EKSTRAKSI METADATA (SERVER-SIDE / ZERO-TRUST)
     forwarded_for = request.headers.get("X-Forwarded-For")
-    
-    if forwarded_for:
-        # X-Forwarded-For bisa berisi daftar IP, ambil yang pertama (IP klien asli)
-        client_ip = forwarded_for.split(",")[0].strip()
-    else:
-        client_ip = request.client.host
+    client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else request.client.host
+    user_agent = request.headers.get("User-Agent", "Unknown")
 
-def login_dinamis(req: UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 2. VALIDASI PENGGUNA EKSISTING
     user = db.query(models.User).filter(models.User.username == req.username).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
+
+    # 3. KALKULASI 3 VARIABEL INTI SECARA MANDIRI (DARI DATABASE, BUKAN FRONTEND)
+    # Mengambil 10 log terakhir dari user ini
+    recent_logs = db.query(models.LoginHistory).filter(
+        models.LoginHistory.user_id == user.id
+    ).order_by(models.LoginHistory.timestamp.desc()).limit(10).all()
+
+    # Hitung berapa kali gagal berturut-turut di masa lalu
+    jml_gagal = sum(1 for log in recent_logs if log.status in ["Failed", "Untrusted"])
     
-    if not user or not security.verify_password(req.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Username atau password salah")
+    # Hitung indikasi anomali (Contoh: Bisa diisi dengan deteksi IP baru, sesuaikan logika Anda)
+    jml_ganti_ip = 0 # Implementasikan logika pengecekan IP unik di sini
+    tingkat_anomali = 0 # Implementasikan logika anomali waktu/lokasi di sini
 
-    skor_dinamis, status_login = fuzzy_engine.hitung_skor(req.jml_gagal, req.jml_ganti_ip, req.tingkat_anomali)
+    # 4. VERIFIKASI PASSWORD & PENCATATAN KEGAGALAN
+    if not security.verify_password(req.password, user.password_hash):
+        # WAJIB DICATAT SEBAGAI FAILED AGAR JML_GAGAL BERTAMBAH DI PERCOBAAN BERIKUTNYA
+        failed_log = models.LoginHistory(
+            user_id=user.id,
+            encrypted_ip=security.encrypt_data(client_ip),
+            encrypted_user_agent=security.encrypt_data(user_agent),
+            trust_score=0,
+            status="Failed"
+        )
+        db.add(failed_log)
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
 
+    # 5. JIKA PASSWORD BENAR, EVALUASI FUZZY LOGIC
+    # Skor dihitung berdasarkan rekam jejak kegagalan (jml_gagal) sebelumnya
+    skor_dinamis, status_login = fuzzy_engine.hitung_skor(jml_gagal, jml_ganti_ip, tingkat_anomali)
+
+    # 6. CATAT HISTORI LOGIN (TRUSTED / SUSPICIOUS / UNTRUSTED)
     new_log = models.LoginHistory(
         user_id=user.id,
-        encrypted_ip=security.encrypt_data(req.ip_address),
-        encrypted_user_agent=security.encrypt_data(req.user_agent),
+        encrypted_ip=security.encrypt_data(client_ip),
+        encrypted_user_agent=security.encrypt_data(user_agent),
         trust_score=skor_dinamis,
         status=status_login
     )
     db.add(new_log)
     db.commit()
 
-# 4. KEPUTUSAN BERDASARKAN STATUS FIS
+    # 7. KEPUTUSAN FINAL BERDASARKAN STATUS FIS
     if status_login == "Trusted":
         token_data = {"sub": user.username, "score": skor_dinamis, "role": user.role}
         jwt_token = security.create_access_token(token_data)
@@ -195,24 +225,25 @@ def login_dinamis(req: UserLogin, background_tasks: BackgroundTasks, db: Session
             "token_type": "bearer",
             "role": user.role
         }
+        
     elif status_login == "Suspicious":
-        # JIKA SUSPICIOUS: Kirim OTP
         otp = str(random.randint(100000, 999999))
+        # PENTING: Gunakan sistem penyimpanan yang valid untuk production (misal: Redis atau DB), bukan dictionary lokal
         otp_storage[user.username] = otp 
         background_tasks.add_task(send_otp_email, user.email, otp)
 
-        return {
-            "status": status_login,
-            "pesan": f"Terdeteksi anomali. OTP telah dikirim ke email Anda.",
-            "trust_score": skor_dinamis
-        }
+        # Ubah ke HTTP 403 agar Next.js catch block menangkap ini sebagai peringatan MFA
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"Terdeteksi anomali. OTP telah dikirim ke email Anda. (Skor: {skor_dinamis})"
+        )
+
     else:
-        # JIKA UNTRUSTED: Blokir keras, jangan beri OTP
-        return {
-            "status": "Untrusted",
-            "pesan": f"Akses Diblokir! Sistem mendeteksi aktivitas Brute-Force/Bot berbahaya. (Skor: {skor_dinamis})",
-            "trust_score": skor_dinamis
-        }
+        # UNTRUSTED
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED, # 423 Locked sangat tepat untuk pemblokiran siber
+            detail=f"Akses Diblokir! Sistem mendeteksi aktivitas Brute-Force berbahaya. (Skor: {skor_dinamis})"
+        )
 
 # ENDPOINT BARU UNTUK VERIFIKASI MFA
 @app.post("/verify-mfa/")

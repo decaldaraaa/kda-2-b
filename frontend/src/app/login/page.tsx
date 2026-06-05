@@ -20,58 +20,63 @@ const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // 1. TRACKING: Ambil jumlah gagal login dari LocalStorage (Simulasi Tracker)
-    const failedAttempts = parseInt(localStorage.getItem(`gagal_${username}`) || "0");
-
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           username: username, 
-          password: password,
-          // 2. INJEKSI DATA: Kirim jumlah kegagalan ke mesin Fuzzy backend!
-          jml_gagal: failedAttempts,
-          // Simulasi lonjakan anomali jika percobaan gagal sudah >= 3 kali
-          tingkat_anomali: failedAttempts >= 3 ? 60 : 0 
+          password: password
+          // ZERO-TRUST: Tidak ada lagi pengiriman jml_gagal atau anomali dari sini!
         }) 
       });
 
       const data = await response.json();
       setIsLoading(false);
 
+      // KEPUTUSAN BERDASARKAN STATUS HTTP DARI BACKEND
       if (response.ok) {
-        // 3. JIKA BERHASIL LOGIN/MFA: Reset hitungan gagal untuk user ini
-        localStorage.removeItem(`gagal_${username}`);
-
-        // Cek status dari mesin Fuzzy
-        if (data.status === "Suspicious") {
-           setLoginStep('mfa');
-        } else if (data.status === "Trusted") {
-           localStorage.setItem("access_token", data.access_token);
-           
-           const safeRole = (data.role || "employee").toLowerCase().trim();
-           localStorage.setItem("user_role", safeRole); 
-           localStorage.setItem("username", username);
-
-           if (safeRole === "ceo") {
-             window.location.href = "/dashboard";
-           } else {
-             window.location.href = "/user-dashboard";
-           }
-        }
-      } else {
-        // 4. JIKA PASSWORD SALAH: Tambah hitungan gagal di LocalStorage!
-        const newFailedCount = failedAttempts + 1;
-        localStorage.setItem(`gagal_${username}`, newFailedCount.toString());
+        // HTTP 200 (OK) -> TRUSTED STATUS
+        localStorage.setItem("access_token", data.access_token);
         
-        alert(`Akses Ditolak: ${data.detail || "Kredensial tidak valid"}. \n(Peringatan: Percobaan gagal ke-${newFailedCount})`);
+        const safeRole = (data.role || "employee").toLowerCase().trim();
+        localStorage.setItem("user_role", safeRole); 
+        localStorage.setItem("username", username);
+
+        if (safeRole === "ceo") {
+          window.location.href = "/dashboard";
+        } else {
+          window.location.href = "/user-dashboard";
+        }
+
+      } else {
+        // PENANGANAN PENOLAKAN DARI SERVER
+        if (response.status === 401) {
+            // Kredensial Salah
+            alert(`Akses Ditolak: ${data.detail}`);
+        } 
+        else if (response.status === 403) {
+            // SUSPICIOUS -> Backend memicu OTP
+            alert(`Peringatan: ${data.detail}`);
+            setLoginStep('mfa'); // Pindah ke UI input OTP
+        } 
+        else if (response.status === 423) {
+            // UNTRUSTED -> Pemblokiran Keras
+            alert(`🚨 TERKUNCI: ${data.detail}`);
+        } 
+        else {
+            // Error validasi (422) atau error server lain (500)
+            alert(`Sistem merespons anomali: ${data.detail || "Kesalahan internal."}`);
+        }
       }
+
     } catch (error) {
       setIsLoading(false);
-      alert("Tidak dapat terhubung ke server pengamanan.");
+      // Ini hanya tereksekusi jika Render mati total atau internet terputus
+      console.error(error);
+      alert("Tidak dapat menghubungi server pengamanan. Periksa koneksi Anda.");
     }
-  };
+};
 
 const handleVerifyMFA = async (e: React.FormEvent) => {
     e.preventDefault();
