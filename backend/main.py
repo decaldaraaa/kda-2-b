@@ -18,7 +18,7 @@ app = FastAPI(title="Sistem Autentikasi Dinamis")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=[*], 
     allow_credentials=True,
     allow_methods=["*"], 
     allow_headers=["*"],
@@ -53,7 +53,7 @@ def send_otp_email(receiver_email: str, otp_code: str):
     # Mengambil email dan password dari Environment Variables
     sender_email = os.getenv("EMAIL_SENDER")
     sender_password = os.getenv("EMAIL_PASSWORD")
-    
+
     msg = EmailMessage()
     msg.set_content(f"Halo!\n\nMesin Fuzzy Logic kami mendeteksi pola login yang tidak biasa pada akun Anda.\n\nUntuk melindungi identitas digital Anda, silakan masukkan kode OTP berikut pada halaman Security Check:\n\nKODE OTP: {otp_code}\n\nKode ini bersifat rahasia. Jangan berikan kepada siapapun.\n\nSalam Aman,\nTim Keamanan Sistem")
     
