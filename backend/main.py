@@ -73,18 +73,26 @@ def send_otp_email(receiver_email: str, otp_code: str):
     msg["To"] = receiver_email
 
     try:
-        logger.info(f"⏳ Mencoba menghubungi SMTP Gmail untuk mengirim ke {receiver_email}...")
+        logger.info(f"⏳ Mencoba menembus peladen SMTP Gmail untuk {receiver_email}...")
         
-        # PENAMBAHAN TIMEOUT (10 Detik) agar background task tidak hang selamanya jika port diblokir
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+        # REVISI 1: Gunakan smtplib.SMTP biasa di Port 587 (bukan SMTP_SSL di 465)
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+            # REVISI 2: Aktifkan mode TLS secara eksplisit
+            server.ehlo()
+            server.starttls() 
+            
+            # Login dan kirim
             server.login(sender_email, sender_password)
             server.send_message(msg)
+            
             logger.info(f"✅ SUKSES: Email OTP berhasil dikirim ke {receiver_email}")
             
     except smtplib.SMTPAuthenticationError:
-        logger.error("❌ GAGAL AUTENTIKASI: Sandi Aplikasi (App Password) ditolak oleh Google. Periksa EMAIL_PASSWORD.")
+        logger.error("❌ GAGAL AUTENTIKASI: Sandi Aplikasi (App Password) ditolak oleh Google.")
+    except ConnectionRefusedError:
+        logger.error("❌ KONEKSI DITOLAK: Render memblokir port 587 secara mutlak.")
     except TimeoutError:
-        logger.error("❌ TIMEOUT: Tidak dapat menembus port 465 smtp.gmail.com. Koneksi terputus.")
+        logger.error("❌ TIMEOUT: Tidak dapat menembus port 587. Koneksi terputus.")
     except Exception as e:
         logger.error(f"❌ ERROR TIDAK DIKENAL pada SMTP: {str(e)}")
 
