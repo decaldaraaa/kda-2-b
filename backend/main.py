@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import smtplib # Impor library email
 from email.message import EmailMessage # Impor pembuat pesan
 import random # Impor generator angka acak
+import os
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -49,10 +50,10 @@ otp_storage = {}
 
 # --- 3. FUNGSI PENGIRIM EMAIL (DIJALANKAN DI BACKGROUND) ---
 def send_otp_email(receiver_email: str, otp_code: str):
-    # !!! GANTI DENGAN EMAIL DAN APP PASSWORD ANDA !!!
-    sender_email = "kuntohidayat20@gmail.com" 
-    sender_password = "aoyuwcwgowmsnudm" 
-
+    # Mengambil email dan password dari Environment Variables
+    sender_email = os.getenv("EMAIL_SENDER")
+    sender_password = os.getenv("EMAIL_PASSWORD")
+    
     msg = EmailMessage()
     msg.set_content(f"Halo!\n\nMesin Fuzzy Logic kami mendeteksi pola login yang tidak biasa pada akun Anda.\n\nUntuk melindungi identitas digital Anda, silakan masukkan kode OTP berikut pada halaman Security Check:\n\nKODE OTP: {otp_code}\n\nKode ini bersifat rahasia. Jangan berikan kepada siapapun.\n\nSalam Aman,\nTim Keamanan Sistem")
     
