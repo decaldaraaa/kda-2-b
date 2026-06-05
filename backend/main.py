@@ -243,7 +243,7 @@ async def login_dinamis(
             "role": user.role
         }
         
-elif status_login == "Suspicious":
+    elif status_login == "Suspicious":
         otp = str(random.randint(100000, 999999))
         
         # PENTING: Gunakan sistem penyimpanan yang valid untuk production (misal: Redis atau DB)
