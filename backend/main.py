@@ -314,51 +314,54 @@ def verify_mfa_code(req: MFAVerify, db: Session = Depends(get_db)):
     }
     
 @app.get("/api/dashboard-stats/")
-async def get_dashboard_stats(
-    q: Optional[str] = Query(None, description="Query pencarian IP, username, atau status"),
+def get_dashboard_stats(
+    q: Optional[str] = Query(None, description="Query pencarian username atau status"),
     db: Session = Depends(get_db)
 ):
-    # 1. Inisialisasi kueri dasar ke tabel riwayat login
-    base_query = db.query(LoginHistory)
-
-    # 2. Terapkan filter jika parameter 'q' dikirimkan dari frontend
+    # 1. Inisialisasi kueri dengan operasi JOIN (LoginHistory + User)
+    query = db.query(models.LoginHistory, models.User).outerjoin(
+        models.User, models.LoginHistory.user_id == models.User.id
+    )
+    
+    # 2. Terapkan filter pencarian jika ada input dari Frontend
     if q:
         search_pattern = f"%{q}%"
-        # Gunakan ilike() untuk pencarian case-insensitive pada beberapa kolom sekaligus
-        base_query = base_query.filter(
+        query = query.filter(
             or_(
-                LoginHistory.ip_address.ilike(search_pattern),
-                LoginHistory.username.ilike(search_pattern),
-                LoginHistory.status.ilike(search_pattern)
+                models.User.username.ilike(search_pattern),
+                models.LoginHistory.status.ilike(search_pattern)
             )
         )
-
-    # 3. Hitung statistik dinamis berdasarkan data yang lolos filter
-    total_logs = base_query.count()
+        
+    # 3. Hitung metrik dinamis (Total & Rata-rata Skor) dari data yang terfilter
+    total_logs = query.count()
     
-    # Menghitung rata-rata skor secara aman (mencegah error division by zero jika kosong)
-    all_filtered_logs = base_query.all()
-    all_scores = [log.trust_score for log in all_filtered_logs if log.trust_score is not None]
-    average_score = round(sum(all_scores) / len(all_scores), 1) if all_scores else 0
-
-    # 4. Ambil aktivitas terbaru (batasi 30 log untuk efisiensi render React)
-    recent_logs = base_query.order_by(LoginHistory.attempt_time.desc()).limit(30).all()
-
-    # 5. Format respons JSON agar sesuai dengan ekspektasi komponen LogCard di frontend
-    formatted_activities = [
-        {
-            "ip": log.ip_address,
-            "user": log.username,
+    avg_score = query.with_entities(func.avg(models.LoginHistory.trust_score)).scalar()
+    avg_score = round(avg_score, 1) if avg_score else 0.0
+    
+    # 4. Ambil 30 aktivitas terbaru dari hasil pencarian
+    recent_records = query.order_by(models.LoginHistory.id.desc()).limit(30).all()
+    
+    activities = []
+    # SQLAlchemy mengembalikan Tuple (log, user) karena kita melakukan JOIN
+    for log, user in recent_records:
+        
+        # Kembalikan fitur Dekripsi AES-256 untuk audit CEO
+        try:
+            real_ip = security.decrypt_data(log.encrypted_ip)
+        except Exception:
+            real_ip = "Encrypted IP"
+            
+        activities.append({
+            "ip": real_ip,
+            "user": user.username if user else "UNKNOWN",
             "score": log.trust_score,
             "status": log.status,
-            # Format waktu menjadi lebih ramah baca (Contoh: 05 Jun, 19:14)
-            "time": log.attempt_time.strftime("%d %b, %H:%M") 
-        }
-        for log in recent_logs
-    ]
-
+            "time": "Recent" # Sesuaikan jika DB Anda sudah merekam attempt_time
+        })
+        
     return {
         "total_logs": total_logs,
-        "average_score": average_score,
-        "recent_activities": formatted_activities
+        "average_score": avg_score,
+        "recent_activities": activities
     }
