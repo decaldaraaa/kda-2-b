@@ -14,6 +14,7 @@ from email.message import EmailMessage # Impor pembuat pesan
 import random # Impor generator angka acak
 from fastapi import Request
 from fastapi.responses import JSONResponse
+import requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,47 +55,57 @@ class MFAVerify(BaseModel):
 # (Di sistem nyata, simpan di Redis atau Database. Untuk demo, dictionary memori sudah sangat cukup)
 otp_storage = {}
 
-# --- 3. FUNGSI PENGIRIM EMAIL (DIJALANKAN DI BACKGROUND) ---
+# --- 3. FUNGSI PENGIRIM EMAIL (HTTP API PRODUCTION) ---
 def send_otp_email(receiver_email: str, otp_code: str):
-    # Mengambil kredensial
-    sender_email = os.getenv("EMAIL_SENDER")
-    sender_password = os.getenv("EMAIL_PASSWORD")
+    api_key = os.getenv("BREVO_API_KEY")
+    sender_email = os.getenv("EMAIL_SENDER") # Harus email yang sudah diverifikasi di Brevo
 
-    # PROTEKSI EKSTRA: Mencegah eksekusi jika variabel lingkungan gagal dimuat
-    if not sender_email or not sender_password:
-        logger.error("❌ CRITICAL: EMAIL_SENDER atau EMAIL_PASSWORD kosong atau tidak terbaca oleh Render!")
+    if not api_key:
+        logger.error("❌ CRITICAL: BREVO_API_KEY tidak ditemukan di environment!")
         return
 
-    msg = EmailMessage()
-    msg.set_content(f"Halo!\n\nMesin Fuzzy Logic kami mendeteksi pola login yang tidak biasa pada akun Anda.\n\nUntuk melindungi identitas digital Anda, silakan masukkan kode OTP berikut pada halaman Security Check:\n\nKODE OTP: {otp_code}\n\nKode ini bersifat rahasia. Jangan berikan kepada siapapun.\n\nSalam Aman,\nTim Keamanan Sistem")
+    # Endpoint resmi Brevo API
+    url = "https://api.brevo.com/v3/smtp/email"
     
-    msg["Subject"] = "SECURE.IT - Security Alert (MFA Code)"
-    msg["From"] = sender_email
-    msg["To"] = receiver_email
+    # Payload data yang akan dikirim (menggunakan HTML agar rapi)
+    payload = {
+        "sender": {"name": "SECURE.IT System", "email": sender_email},
+        "to": [{"email": receiver_email}],
+        "subject": "SECURE.IT - Security Alert (MFA Code)",
+        "htmlContent": f"""
+        <div style="font-family: sans-serif; max-width: 500px; margin: auto; border: 1px solid #ddd; border-radius: 10px; padding: 20px;">
+            <h2 style="color: #0D1B2A; text-align: center;">Security Check</h2>
+            <p>Halo,</p>
+            <p>Mesin AI kami mendeteksi pola login anomali pada akun Anda. Untuk melindungi identitas digital Anda, silakan masukkan kode OTP berikut:</p>
+            <div style="background-color: #0D1B2A; color: #FFD166; font-size: 28px; font-weight: bold; text-align: center; padding: 15px; border-radius: 8px; letter-spacing: 5px; margin: 20px 0;">
+                {otp_code}
+            </div>
+            <p style="font-size: 12px; color: #666;">Kode ini bersifat rahasia dan hanya berlaku untuk satu kali percobaan. Jangan berikan kepada siapa pun.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 12px; color: #999; text-align: center;">Secure.IT Security Systems &copy; 2026</p>
+        </div>
+        """
+    }
+    
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
 
     try:
-        logger.info(f"⏳ Mencoba menembus peladen SMTP Gmail untuk {receiver_email}...")
+        logger.info(f"⏳ Mengirim instruksi OTP ke API Brevo untuk {receiver_email}...")
         
-        # REVISI 1: Gunakan smtplib.SMTP biasa di Port 587 (bukan SMTP_SSL di 465)
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
-            # REVISI 2: Aktifkan mode TLS secara eksplisit
-            server.ehlo()
-            server.starttls() 
+        # Kirim request POST ke port 443 (HTTPS) yang mustahil diblokir firewall
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        
+        if response.status_code in [200, 201, 202]:
+            logger.info(f"✅ SUKSES API: Email OTP terkirim ke {receiver_email}")
+        else:
+            logger.error(f"❌ GAGAL API: Server merespons {response.status_code} - {response.text}")
             
-            # Login dan kirim
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            
-            logger.info(f"✅ SUKSES: Email OTP berhasil dikirim ke {receiver_email}")
-            
-    except smtplib.SMTPAuthenticationError:
-        logger.error("❌ GAGAL AUTENTIKASI: Sandi Aplikasi (App Password) ditolak oleh Google.")
-    except ConnectionRefusedError:
-        logger.error("❌ KONEKSI DITOLAK: Render memblokir port 587 secara mutlak.")
-    except TimeoutError:
-        logger.error("❌ TIMEOUT: Tidak dapat menembus port 587. Koneksi terputus.")
     except Exception as e:
-        logger.error(f"❌ ERROR TIDAK DIKENAL pada SMTP: {str(e)}")
+        logger.error(f"❌ ERROR KONEKSI API: {str(e)}")
 
 # --- 4. FUNGSI DATABASE ---
 def get_db():
