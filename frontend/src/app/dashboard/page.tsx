@@ -5,28 +5,42 @@ import { Search, Bell, Grid, Activity, ShieldAlert, Users, Settings, LogOut } fr
 export default function Dashboard() {
   const [adminName, setAdminName] = useState("SuperAdmin");
   
-  // State baru untuk menampung data nyata dari database
   const [dashboardData, setDashboardData] = useState({
     total_logs: 0,
     average_score: 0,
     recent_activities: []
   });
 
+  // [BARU] 1. State untuk menangkap ketikan pengguna
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // [BARU] 2. Efek Debounce: Menunda update query selama 500ms agar tidak spam API
   useEffect(() => {
-    // 1. Cek RBAC CEO
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // [UPDATE] 3. useEffect utama untuk Fetching Data
+  useEffect(() => {
+    // Cek RBAC CEO
     const role = localStorage.getItem("user_role");
     if (role !== "ceo") {
       window.location.href = "/login"; 
     }
 
-    // 2. Ambil Nama
+    // Ambil Nama
     const storedName = localStorage.getItem("username");
     if (storedName) setAdminName(storedName);
 
-    // 3. FETCH DATA DARI BACKEND
+    // Fetch Data
     const fetchStats = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard-stats/`);
+        // [UPDATE] Menambahkan variabel debouncedSearch ke ujung URL
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard-stats/?q=${encodeURIComponent(debouncedSearch)}`;
+        const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
           setDashboardData(data);
@@ -37,11 +51,13 @@ export default function Dashboard() {
     };
 
     fetchStats();
-    // Atur interval agar dashboard refresh otomatis tiap 5 detik (Real-time feel!)
+    
+    // Refresh otomatis tiap 5 detik (akan menggunakan nilai debouncedSearch terakhir)
     const intervalId = setInterval(fetchStats, 5000);
     return () => clearInterval(intervalId);
 
-  }, []);
+  // [UPDATE] Memasukkan debouncedSearch ke dalam array dependency agar useEffect dijalankan ulang saat pencarian berubah
+  }, [debouncedSearch]); 
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -79,7 +95,14 @@ export default function Dashboard() {
         <header className="flex justify-between items-center p-8">
           <div className="flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-2 w-1/3 backdrop-blur-md">
             <Search className="text-gray-400 mr-3" size={20} />
-            <input type="text" placeholder="Search logs, IPs, or users..." className="bg-transparent border-none outline-none text-[#E0E1DD] w-full placeholder-gray-500" />
+            {/* [UPDATE] 4. Menyambungkan input HTML dengan state searchQuery */}
+            <input 
+              type="text" 
+              placeholder="Search logs, IPs, or users..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none text-[#E0E1DD] w-full placeholder-gray-500" 
+            />
           </div>
 
           <div className="flex items-center gap-6">
@@ -124,7 +147,6 @@ export default function Dashboard() {
               <h2 className="text-2xl font-bold mb-6">Recent Suspicious Activities</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                {/* Looping data dinamis dari backend */}
                 {dashboardData.recent_activities.length > 0 ? (
                   dashboardData.recent_activities.map((act: any, idx: number) => (
                     <LogCard 
@@ -138,7 +160,7 @@ export default function Dashboard() {
                     />
                   ))
                 ) : (
-                  <p className="text-gray-500 col-span-3">Belum ada data login yang terekam...</p>
+                  <p className="text-gray-500 col-span-3">Belum ada data login yang terekam atau ditemukan...</p>
                 )}
 
               </div>
@@ -160,7 +182,6 @@ export default function Dashboard() {
             <div className="flex justify-between items-end border-b border-white/10 pb-4 mb-4">
               <div>
                 <p className="text-sm text-gray-400">Average Trust Score</p>
-                {/* Data Rata-Rata Dinamis */}
                 <p className="text-3xl font-bold mt-1 text-[#FFD166]">{dashboardData.average_score}<span className="text-lg text-white"> / 100</span></p>
               </div>
             </div>
@@ -173,7 +194,6 @@ export default function Dashboard() {
                       <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0D1B2A]"></div>
                       <div className="w-8 h-8 rounded-full bg-purple-500 border-2 border-[#0D1B2A]"></div>
                     </div>
-                    {/* Data Total Log Dinamis */}
                     <span className="font-bold text-xl">{dashboardData.total_logs} <span className="text-sm font-normal text-gray-400">requests</span></span>
                  </div>
                </div>
