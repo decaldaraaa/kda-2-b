@@ -7,11 +7,15 @@ import models, security
 import fuzzy_engine
 from database import engine, SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
-import smtplib # Impor library email
+import os
+import smtplib
+import logging
 from email.message import EmailMessage # Impor pembuat pesan
 import random # Impor generator angka acak
-import os
 from fastapi import Request
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -51,9 +55,14 @@ otp_storage = {}
 
 # --- 3. FUNGSI PENGIRIM EMAIL (DIJALANKAN DI BACKGROUND) ---
 def send_otp_email(receiver_email: str, otp_code: str):
-    # Mengambil email dan password dari Environment Variables
+    # Mengambil kredensial
     sender_email = os.getenv("EMAIL_SENDER")
     sender_password = os.getenv("EMAIL_PASSWORD")
+
+    # PROTEKSI EKSTRA: Mencegah eksekusi jika variabel lingkungan gagal dimuat
+    if not sender_email or not sender_password:
+        logger.error("❌ CRITICAL: EMAIL_SENDER atau EMAIL_PASSWORD kosong atau tidak terbaca oleh Render!")
+        return
 
     msg = EmailMessage()
     msg.set_content(f"Halo!\n\nMesin Fuzzy Logic kami mendeteksi pola login yang tidak biasa pada akun Anda.\n\nUntuk melindungi identitas digital Anda, silakan masukkan kode OTP berikut pada halaman Security Check:\n\nKODE OTP: {otp_code}\n\nKode ini bersifat rahasia. Jangan berikan kepada siapapun.\n\nSalam Aman,\nTim Keamanan Sistem")
@@ -63,13 +72,20 @@ def send_otp_email(receiver_email: str, otp_code: str):
     msg["To"] = receiver_email
 
     try:
-        # Menghubungkan ke server SMTP Gmail
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        logger.info(f"⏳ Mencoba menghubungi SMTP Gmail untuk mengirim ke {receiver_email}...")
+        
+        # PENAMBAHAN TIMEOUT (10 Detik) agar background task tidak hang selamanya jika port diblokir
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
             server.login(sender_email, sender_password)
             server.send_message(msg)
-            print(f"✅ Email OTP berhasil dikirim ke {receiver_email}")
+            logger.info(f"✅ SUKSES: Email OTP berhasil dikirim ke {receiver_email}")
+            
+    except smtplib.SMTPAuthenticationError:
+        logger.error("❌ GAGAL AUTENTIKASI: Sandi Aplikasi (App Password) ditolak oleh Google. Periksa EMAIL_PASSWORD.")
+    except TimeoutError:
+        logger.error("❌ TIMEOUT: Tidak dapat menembus port 465 smtp.gmail.com. Koneksi terputus.")
     except Exception as e:
-        print(f"❌ Gagal mengirim email: {e}")
+        logger.error(f"❌ ERROR TIDAK DIKENAL pada SMTP: {str(e)}")
 
 # --- 4. FUNGSI DATABASE ---
 def get_db():
