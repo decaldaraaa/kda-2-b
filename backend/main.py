@@ -210,18 +210,23 @@ async def login_dinamis(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
 
-    # 3. KALKULASI 3 VARIABEL INTI SECARA MANDIRI (DARI DATABASE, BUKAN FRONTEND)
-    # Mengambil 10 log terakhir dari user ini
-    recent_logs = db.query(models.LoginHistory).filter(
-        models.LoginHistory.user_id == user.id
-    ).order_by(models.LoginHistory.login_time.desc()).limit(10).all()
+# 3. KALKULASI 3 VARIABEL INTI SECARA MANDIRI (DARI DATABASE, BUKAN FRONTEND)
+    
+    # Menentukan batas waktu cooldown (1 jam ke belakang dari sekarang)
+    time_threshold = datetime.now() - timedelta(hours=1)
 
-    # Hitung berapa kali gagal berturut-turut di masa lalu
+    # Mengambil log dari 1 jam terakhir untuk user ini
+    recent_logs = db.query(models.LoginHistory).filter(
+        models.LoginHistory.user_id == user.id,
+        models.LoginHistory.attempt_time >= time_threshold  # Filter waktu masuk di sini
+    ).order_by(models.LoginHistory.attempt_time.desc()).limit(10).all()
+
+    # Hitung berapa kali gagal berturut-turut HANYA dalam rentang 1 jam tersebut
     jml_gagal = sum(1 for log in recent_logs if log.status in ["Failed", "Untrusted"])
     
     # Hitung indikasi anomali (Contoh: Bisa diisi dengan deteksi IP baru, sesuaikan logika Anda)
-    jml_ganti_ip = 0 # Implementasikan logika pengecekan IP unik di sini
-    tingkat_anomali = 0 # Implementasikan logika anomali waktu/lokasi di sini
+    jml_ganti_ip = 0 
+    tingkat_anomali = 0 
 
     # 4. VERIFIKASI PASSWORD & PENCATATAN KEGAGALAN
     if not security.verify_password(req.password, user.password_hash):
@@ -236,6 +241,9 @@ async def login_dinamis(
         db.add(failed_log)
         db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
+
+    # 5. JIKA PASSWORD BENAR, EVALUASI FUZZY LOGIC
+    # ... (lanjutkan dengan kode fuzzy_engine Anda di bawah ini, pastikan indentasinya sejajar dengan IF di atas)
 
     # 5. JIKA PASSWORD BENAR, EVALUASI FUZZY LOGIC
     # Skor dihitung berdasarkan rekam jejak kegagalan (jml_gagal) sebelumnya
