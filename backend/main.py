@@ -260,22 +260,18 @@ async def login_dinamis(
     db.add(new_log)
     db.commit()
 
-    # ... (kode verifikasi password Anda sebelumnya)
+    # 1. TENTUKAN BATAS WAKTU COOLDOWN (1 JAM KE BELAKANG)
+    # Gunakan datetime.now() atau datetime.utcnow() sesuai dengan konfigurasi timezone database Anda
+    time_threshold = datetime.now() - timedelta(hours=1)
 
-        # 1. TENTUKAN BATAS WAKTU COOLDOWN (1 JAM KE BELAKANG)
-        # Gunakan datetime.now() atau datetime.utcnow() sesuai dengan konfigurasi timezone database Anda
-        time_threshold = datetime.now() - timedelta(hours=1)
+    # 2. AMBIL RIWAYAT HANYA DALAM RENTANG WAKTU TERSEBUT
+    recent_logs = db.query(models.LoginHistory).filter(
+        models.LoginHistory.user_id == user.id,
+        models.LoginHistory.attempt_time >= time_threshold  # <-- FILTER KRITIS
+    ).order_by(models.LoginHistory.id.desc()).limit(10).all()
 
-        # 2. AMBIL RIWAYAT HANYA DALAM RENTANG WAKTU TERSEBUT
-        recent_logs = db.query(models.LoginHistory).filter(
-            models.LoginHistory.user_id == user.id,
-            models.LoginHistory.attempt_time >= time_threshold  # <-- FILTER KRITIS
-        ).order_by(models.LoginHistory.id.desc()).limit(10).all()
-
-        # 3. Hitung jumlah kegagalan (hanya dari 1 jam terakhir)
-        failed_attempts_last_hour = sum(1 for log in recent_logs if log.status != "Trusted")
-
-        # ... (lanjutkan ke perhitungan Fuzzy Logic Anda)
+    # 3. Hitung jumlah kegagalan (hanya dari 1 jam terakhir)
+    failed_attempts_last_hour = sum(1 for log in recent_logs if log.status != "Trusted")
 
     # 7. KEPUTUSAN FINAL BERDASARKAN STATUS FIS
     if status_login == "Trusted":
