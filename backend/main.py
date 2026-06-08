@@ -213,7 +213,7 @@ async def login_dinamis(
 # 3. KALKULASI 3 VARIABEL INTI SECARA MANDIRI (DARI DATABASE, BUKAN FRONTEND)
     
     # Menentukan batas waktu cooldown (1 jam ke belakang dari sekarang)
-    time_threshold = datetime.now() - timedelta(hours=1)
+    time_threshold = datetime.datetime.now() - datetime.timedelta(hours=1)
 
     # Mengambil log dari 1 jam terakhir untuk user ini
     recent_logs = db.query(models.LoginHistory).filter(
