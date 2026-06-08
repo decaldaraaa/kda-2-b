@@ -192,10 +192,9 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         "status_password_di_database": "Terproteksi Bcrypt Hash"
     }
 
-
 @app.post("/login/")
 async def login_dinamis(
-    req: UserLogin, # SEKARANG FRONTEND HANYA BOLEH MENGIRIM USERNAME & PASSWORD
+    req: UserLogin,
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
@@ -210,27 +209,25 @@ async def login_dinamis(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
 
-# 3. KALKULASI 3 VARIABEL INTI SECARA MANDIRI (DARI DATABASE, BUKAN FRONTEND)
-    
-    # Menentukan batas waktu cooldown (1 jam ke belakang dari sekarang)
+    # 3. KALKULASI 3 VARIABEL INTI DENGAN COOLDOWN 1 JAM
+    # Menentukan batas waktu cooldown secara aman
     time_threshold = datetime.datetime.now() - datetime.timedelta(hours=1)
 
-    # Mengambil log dari 1 jam terakhir untuk user ini
+    # REVISI KRITIS: Menggunakan kolom 'login_time', bukan 'attempt_time'
     recent_logs = db.query(models.LoginHistory).filter(
         models.LoginHistory.user_id == user.id,
-        models.LoginHistory.attempt_time >= time_threshold  # Filter waktu masuk di sini
-    ).order_by(models.LoginHistory.attempt_time.desc()).limit(10).all()
+        models.LoginHistory.login_time >= time_threshold  
+    ).order_by(models.LoginHistory.login_time.desc()).limit(10).all()
 
-    # Hitung berapa kali gagal berturut-turut HANYA dalam rentang 1 jam tersebut
+    # Hitung berapa kali gagal berturut-turut HANYA dalam rentang 1 jam terakhir
     jml_gagal = sum(1 for log in recent_logs if log.status in ["Failed", "Untrusted"])
     
-    # Hitung indikasi anomali (Contoh: Bisa diisi dengan deteksi IP baru, sesuaikan logika Anda)
+    # Indikasi anomali lainnya
     jml_ganti_ip = 0 
     tingkat_anomali = 0 
 
     # 4. VERIFIKASI PASSWORD & PENCATATAN KEGAGALAN
     if not security.verify_password(req.password, user.password_hash):
-        # WAJIB DICATAT SEBAGAI FAILED AGAR JML_GAGAL BERTAMBAH DI PERCOBAAN BERIKUTNYA
         failed_log = models.LoginHistory(
             user_id=user.id,
             encrypted_ip=security.encrypt_data(client_ip),
@@ -243,10 +240,7 @@ async def login_dinamis(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
 
     # 5. JIKA PASSWORD BENAR, EVALUASI FUZZY LOGIC
-    # ... (lanjutkan dengan kode fuzzy_engine Anda di bawah ini, pastikan indentasinya sejajar dengan IF di atas)
-
-    # 5. JIKA PASSWORD BENAR, EVALUASI FUZZY LOGIC
-    # Skor dihitung berdasarkan rekam jejak kegagalan (jml_gagal) sebelumnya
+    # Skor dihitung secara adil, "dosa" lebih dari 1 jam lalu sudah dihapus (jml_gagal = 0)
     skor_dinamis, status_login = fuzzy_engine.hitung_skor(jml_gagal, jml_ganti_ip, tingkat_anomali)
 
     # 6. CATAT HISTORI LOGIN (TRUSTED / SUSPICIOUS / UNTRUSTED)
@@ -259,19 +253,6 @@ async def login_dinamis(
     )
     db.add(new_log)
     db.commit()
-
-    # 1. TENTUKAN BATAS WAKTU COOLDOWN (1 JAM KE BELAKANG)
-    # Gunakan datetime.now() atau datetime.utcnow() sesuai dengan konfigurasi timezone database Anda
-    time_threshold = datetime.now() - timedelta(hours=1)
-
-    # 2. AMBIL RIWAYAT HANYA DALAM RENTANG WAKTU TERSEBUT
-    recent_logs = db.query(models.LoginHistory).filter(
-        models.LoginHistory.user_id == user.id,
-        models.LoginHistory.attempt_time >= time_threshold  # <-- FILTER KRITIS
-    ).order_by(models.LoginHistory.id.desc()).limit(10).all()
-
-    # 3. Hitung jumlah kegagalan (hanya dari 1 jam terakhir)
-    failed_attempts_last_hour = sum(1 for log in recent_logs if log.status != "Trusted")
 
     # 7. KEPUTUSAN FINAL BERDASARKAN STATUS FIS
     if status_login == "Trusted":
@@ -290,14 +271,12 @@ async def login_dinamis(
     elif status_login == "Suspicious":
         otp = str(random.randint(100000, 999999))
         
-        # PENTING: Gunakan sistem penyimpanan yang valid untuk production (misal: Redis atau DB)
+        # PENTING: Gunakan sistem penyimpanan yang valid untuk production
         otp_storage[user.username] = otp 
         
         # Mendaftarkan task ke dalam antrean
         background_tasks.add_task(send_otp_email, user.email, otp)
 
-        # REVISI ARSITEKTURAL: Mengembalikan JSONResponse alih-alih melempar Exception
-        # Ini memastikan background_tasks tetap tereksekusi di server setelah status 403 dikirim ke Vercel.
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN, 
             content={"detail": f"Terdeteksi anomali. OTP telah dikirim ke email Anda. (Skor: {skor_dinamis})"},
@@ -307,7 +286,7 @@ async def login_dinamis(
     else:
         # UNTRUSTED
         raise HTTPException(
-            status_code=status.HTTP_423_LOCKED, # 423 Locked sangat tepat untuk pemblokiran siber
+            status_code=status.HTTP_423_LOCKED,
             detail=f"Akses Diblokir! Sistem mendeteksi aktivitas Brute-Force berbahaya. (Skor: {skor_dinamis})"
         )
 
