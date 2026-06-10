@@ -90,13 +90,13 @@ export default function HomePage() {
             name="Michael Christian" 
             nim="L0224035" 
             role="Security Analyst" 
-            imgUrl="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=600&auto=format&fit=crop" 
+            imgUrl="/mikel.jpeg" 
           />
           <TeamCard 
             name="Maulana Naufal H." 
             nim="L0224051" 
             role="UI/UX & Frontend Dev" 
-            imgUrl="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop" 
+            imgUrl="/maul.jpeg" 
           />
         </div>
       </section>
