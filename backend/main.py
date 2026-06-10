@@ -209,22 +209,45 @@ async def login_dinamis(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username atau password salah")
 
-    # 3. KALKULASI 3 VARIABEL INTI DENGAN COOLDOWN 1 JAM
-    # Menentukan batas waktu cooldown secara aman
-    time_threshold = datetime.datetime.now() - datetime.timedelta(hours=1)
+# 3. KALKULASI 3 VARIABEL INTI DENGAN COOLDOWN 1 JAM
+    time_threshold = datetime.datetime.now() - datetime.timedelta(hours=1)
 
-    # REVISI KRITIS: Menggunakan kolom 'login_time', bukan 'attempt_time'
-    recent_logs = db.query(models.LoginHistory).filter(
-        models.LoginHistory.user_id == user.id,
-        models.LoginHistory.login_time >= time_threshold  
-    ).order_by(models.LoginHistory.login_time.desc()).limit(10).all()
+    recent_logs = db.query(models.LoginHistory).filter(
+        models.LoginHistory.user_id == user.id,
+        models.LoginHistory.login_time >= time_threshold  
+    ).order_by(models.LoginHistory.login_time.desc()).limit(10).all()
 
-    # Hitung berapa kali gagal berturut-turut HANYA dalam rentang 1 jam terakhir
-    jml_gagal = sum(1 for log in recent_logs if log.status in ["Failed", "Untrusted"])
-    
-    # Indikasi anomali lainnya
-    jml_ganti_ip = 0 
-    tingkat_anomali = 0 
+    # Variabel 1: Jumlah Gagal Aktual
+    jml_gagal = sum(1 for log in recent_logs if log.status in ["Failed", "Untrusted"])
+    
+    # Variabel 2: Jumlah Ganti IP (Menghitung IP unik dalam 1 jam terakhir)
+    ip_history = set()
+    for log in recent_logs:
+        try:
+            # Dekripsi log historis untuk membandingkan IP
+            decrypted_ip = security.decrypt_data(log.encrypted_ip)
+            ip_history.add(decrypted_ip)
+        except Exception:
+            pass
+            
+    # Jika set memiliki lebih dari 1 IP unik, berarti ada perpindahan
+    jml_ganti_ip = len(ip_history) - 1 if len(ip_history) > 0 else 0
+
+    # Variabel 3: Tingkat Anomali (Deteksi lompatan perilaku)
+    tingkat_anomali = 0
+    if recent_logs:
+        last_log = recent_logs[0] # Log paling baru sebelum percobaan ini
+        try:
+            last_ip = security.decrypt_data(last_log.encrypted_ip)
+            last_ua = security.decrypt_data(last_log.encrypted_user_agent)
+            
+            # Jika percobaan saat ini berbeda dari percobaan terakhir (lompatan instan)
+            if last_ip != client_ip:
+                tingkat_anomali += 3  # Bobot tinggi untuk pindah IP mendadak
+            if last_ua != user_agent:
+                tingkat_anomali += 2  # Bobot menengah untuk ganti device/browser
+        except Exception:
+            pass 
 
     # 4. VERIFIKASI PASSWORD & PENCATATAN KEGAGALAN
     if not security.verify_password(req.password, user.password_hash):

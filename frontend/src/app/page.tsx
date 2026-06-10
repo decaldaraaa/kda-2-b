@@ -78,7 +78,7 @@ export default function HomePage() {
             name="Stefani Ayudya P." 
             nim="L0224011" 
             role="AI & Logic Engineer" 
-            imgUrl="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop" 
+            imgUrl="stefani.jpeg" 
           />
           <TeamCard 
             name="Kunto Rossindu H." 
