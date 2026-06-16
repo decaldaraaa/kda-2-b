@@ -120,7 +120,7 @@ export default function UserAccess() {
             <select 
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-6 text-[#FFD166] w-full outline-none"
+              className="bg-black border border-[#FFD166] rounded-xl px-4 py-3 mb-6 text-[#FFD166] w-full outline-none"
             >
               <option value="employee">Employee</option>
               <option value="admin">Admin</option>
