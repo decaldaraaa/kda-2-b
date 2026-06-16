@@ -206,7 +206,7 @@ export default function SettingsPage() {
           )}
 
           {/* Tombol Simpan Mengambang di Bawah */}
-          <div className="absolute bottom-8 right-8">
+          <div className="absolute bottom-8 left-8">
             <button 
               onClick={handleSave}
               disabled={isSaving}

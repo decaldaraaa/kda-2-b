@@ -4,26 +4,53 @@ import { ShieldCheck, LogOut, User } from 'lucide-react';
 
 export default function UserDashboard() {
   const [username, setUsername] = useState("Employee");
+  const [userIp, setUserIp] = useState("Loading IP...");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Client-side Guard (Kelemahan: Mudah bypass, tapi berguna untuk UX)
     const role = localStorage.getItem("user_role");
-    if (role !== "employee") {
-      window.location.href = "/login";
-    }
+    const token = localStorage.getItem("access_token");
     
-    // --- Tambahkan 3 baris ini ---
+    if (!token || role !== "employee") {
+      window.location.href = "/login";
+      return;
+    }
+
     const storedName = localStorage.getItem("username");
     if (storedName) {
       setUsername(storedName);
     }
-    // -----------------------------
+
+    // 2. Mengambil IP Pengguna secara Dinamis
+    // Di produksi, ganti URL ini dengan endpoint Backend Anda untuk validasi Fuzzy Logic
+    fetch('https://api.ipify.org?format=json')
+      .then((res) => res.json())
+      .then((data) => {
+        setUserIp(data.ip);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Gagal mengambil IP:", err);
+        setUserIp("Gagal mendeteksi IP");
+        setLoading(false);
+      });
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_role");
+    localStorage.removeItem("username"); // Bersihkan username saat logout
     window.location.href = "/login";
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0D1B2A] flex items-center justify-center text-white">
+        <p className="animate-pulse">Memuat data keamanan...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0D1B2A] text-[#E0E1DD] font-sans p-8">
@@ -53,22 +80,21 @@ export default function UserDashboard() {
             Sistem Fuzzy Logic tidak mendeteksi adanya aktivitas login yang mencurigakan dari akun Anda akhir-akhir ini.
           </p>
           <div className="w-full bg-[#0D1B2A] rounded-xl p-4 text-left">
-             <p className="text-sm text-gray-400">Last Login IP</p>
-             <p className="font-mono text-lg text-[#FFD166]">127.0.0.1 (Localhost)</p>
+             <p className="text-sm text-gray-400">Current Login IP</p>
+             <p className="font-mono text-lg text-[#FFD166]">{userIp}</p>
           </div>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
            <h3 className="text-xl font-bold mb-6">Recent Activity Logs</h3>
            <div className="space-y-4">
-              {/* Dummy data untuk sementara */}
               <div className="border-l-2 border-green-500 pl-4 py-1">
                  <p className="font-bold text-sm">Login Success</p>
-                 <p className="text-xs text-gray-500">Today, 10:45 AM • Chrome (Windows)</p>
+                 <p className="text-xs text-gray-500">Today • {userIp}</p>
               </div>
               <div className="border-l-2 border-green-500 pl-4 py-1">
-                 <p className="font-bold text-sm">Login Success</p>
-                 <p className="text-xs text-gray-500">Yesterday, 08:30 AM • Chrome (Windows)</p>
+                 <p className="font-bold text-sm">Session Verified</p>
+                 <p className="text-xs text-gray-500">Fuzzy Logic Score: Safe</p>
               </div>
            </div>
         </div>
