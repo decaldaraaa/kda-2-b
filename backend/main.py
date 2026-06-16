@@ -1,3 +1,4 @@
+import string
 from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -36,6 +37,9 @@ app.add_middleware(
     allow_methods=["*"], 
     allow_headers=["*"],
 )
+
+class RoleUpdate(BaseModel):
+    new_role: str
 
 class WarningRequest(BaseModel):
     username: str
@@ -466,3 +470,69 @@ async def send_security_warning(
     background_tasks.add_task(send_warning_task, user.email, user.username, req.ip_address)
     
     return {"status": "success", "message": f"Instruksi pengiriman email peringatan ke {user.username} telah dieksekusi."}
+
+# 1. Endpoint: Ambil Semua Pengguna & Sub-Query Last Login
+@app.get("/api/users/")
+def get_all_users(db: Session = Depends(get_db)):
+    users = db.query(models.User).order_by(models.User.id.asc()).all()
+    result = []
+    
+    for u in users:
+        # Tarik waktu login terakhir dari tabel LoginHistory
+        last_log = db.query(models.LoginHistory).filter(
+            models.LoginHistory.user_id == u.id
+        ).order_by(models.LoginHistory.login_time.desc()).first()
+        
+        last_login_str = last_log.login_time.strftime("%d %b, %H:%M") if last_log and last_log.login_time else "Belum Pernah Login"
+        
+        result.append({
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "role": u.role,
+            "status": "Active", # Fallback karena kolom status belum ada di DB
+            "last_login": last_login_str
+        })
+    return result
+
+# 2. Endpoint: Ubah Role (RBAC)
+@app.put("/api/users/{user_id}/role")
+def update_user_role(user_id: int, req: RoleUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    
+    user.role = req.new_role
+    db.commit()
+    return {"message": f"Role berhasil diubah menjadi {req.new_role}"}
+
+# 3. Endpoint: Reset Password (Auto-Generate)
+@app.post("/api/users/{user_id}/reset-password")
+def reset_user_password(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    
+    # Generate password acak 8 karakter
+    characters = string.ascii_letters + string.digits
+    new_password = ''.join(random.choice(characters) for i in range(8))
+    
+    # Hash password baru dan simpan
+    user.password_hash = security.get_password_hash(new_password)
+    db.commit()
+    
+    return {"message": "Password berhasil direset", "new_password": new_password}
+
+# 4. Endpoint: Hapus Akun (Nonaktif Permanen)
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    
+    # Hapus log histori yang terkait agar tidak terjadi error foreign key constraint
+    db.query(models.LoginHistory).filter(models.LoginHistory.user_id == user_id).delete()
+    
+    db.delete(user)
+    db.commit()
+    return {"message": "Akun berhasil dihapus permanen"}
