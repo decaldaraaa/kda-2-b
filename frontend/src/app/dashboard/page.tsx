@@ -11,11 +11,9 @@ export default function Dashboard() {
     recent_activities: []
   });
 
-  // [BARU] 1. State untuk menangkap ketikan pengguna
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // [BARU] 2. Efek Debounce: Menunda update query selama 500ms agar tidak spam API
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -23,22 +21,17 @@ export default function Dashboard() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // [UPDATE] 3. useEffect utama untuk Fetching Data
   useEffect(() => {
-    // Cek RBAC CEO
     const role = localStorage.getItem("user_role");
     if (role !== "ceo") {
       window.location.href = "/login"; 
     }
 
-    // Ambil Nama
     const storedName = localStorage.getItem("username");
     if (storedName) setAdminName(storedName);
 
-    // Fetch Data
     const fetchStats = async () => {
       try {
-        // [UPDATE] Menambahkan variabel debouncedSearch ke ujung URL
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard-stats/?q=${encodeURIComponent(debouncedSearch)}`;
         const response = await fetch(url);
         if (response.ok) {
@@ -52,14 +45,12 @@ export default function Dashboard() {
 
     fetchStats();
     
-    // Refresh otomatis tiap 5 detik (akan menggunakan nilai debouncedSearch terakhir)
     const intervalId = setInterval(fetchStats, 5000);
     return () => clearInterval(intervalId);
 
-  // [UPDATE] Memasukkan debouncedSearch ke dalam array dependency agar useEffect dijalankan ulang saat pencarian berubah
   }, [debouncedSearch]); 
 
-  // [BARU] State untuk mengontrol visibilitas Pop-up
+  // State untuk mengontrol visibilitas Pop-up
   const [showExportModal, setShowExportModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
 
@@ -99,7 +90,6 @@ export default function Dashboard() {
         <header className="flex justify-between items-center p-8">
           <div className="flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-2 w-1/3 backdrop-blur-md">
             <Search className="text-gray-400 mr-3" size={20} />
-            {/* [UPDATE] 4. Menyambungkan input HTML dengan state searchQuery */}
             <input 
               type="text" 
               placeholder="Search logs, IPs, or users..." 
@@ -220,46 +210,8 @@ export default function Dashboard() {
 
         </div>
       </main>
-    </div>
-  );
-}
 
-// Komponen Reusable
-function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: (e: React.MouseEvent) => void }) {
-  return (
-    <a href="#" onClick={onClick} className={`flex items-center gap-4 px-4 py-3 rounded-xl transition ${active ? 'bg-[#FFD166] text-[#0D1B2A] font-bold shadow-[0_0_15px_rgba(255,209,102,0.3)]' : 'text-gray-400 hover:text-[#E0E1DD] hover:bg-white/5'}`}>
-      {icon}
-      <span className="hidden lg:block">{label}</span>
-    </a>
-  );
-}
-
-function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition backdrop-blur-md flex flex-col relative overflow-hidden">
-      <div className={`absolute top-0 left-0 w-full h-1 ${isDanger ? 'bg-red-500 shadow-[0_0_10px_red]' : status === 'Suspicious' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
-      
-      <div className="flex justify-between items-start mb-4 mt-2">
-        <div className="bg-[#0D1B2A] px-3 py-1 rounded-lg text-xs font-mono border border-white/5 text-gray-300">
-          {ip}
-        </div>
-        <div className={`text-xs font-bold px-2 py-1 rounded-full ${isDanger ? 'bg-red-500/20 text-red-400' : status === 'Suspicious' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
-          {time}
-        </div>
-      </div>
-      
-      <h3 className="font-bold text-lg truncate mb-1">{user}</h3>
-      
-      <div className="flex justify-between items-end mt-4 pt-4 border-t border-white/10">
-        <div>
-          <p className="text-xs text-gray-400">Trust Score</p>
-          <p className="font-bold text-xl">{score}</p>
-        </div>
-        <div className={`text-sm font-semibold ${isDanger ? 'text-red-400' : status === 'Suspicious' ? 'text-yellow-400' : 'text-green-400'}`}>
-          {status}
-        </div>
-      </div>
-      {/* ================= MODAL EXPORT REPORT ================= */}
+      {/* ================= MODAL EXPORT REPORT (SEKARANG ADA DI DALAM DASHBOARD SCOPE) ================= */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#0D1B2A] border border-white/10 rounded-3xl w-full max-w-md p-6 relative shadow-2xl flex flex-col">
@@ -294,7 +246,7 @@ function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
         </div>
       )}
 
-      {/* ================= MODAL VIEW FULL LOGS (TIDAK DISARANKAN UNTUK PRODUCTION) ================= */}
+      {/* ================= MODAL VIEW FULL LOGS (SEKARANG ADA DI DALAM DASHBOARD SCOPE) ================= */}
       {showLogsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#0D1B2A] border border-white/10 rounded-3xl w-full max-w-5xl h-[80vh] p-6 relative shadow-2xl flex flex-col">
@@ -305,7 +257,6 @@ function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
               </button>
             </div>
             
-            {/* Area Tabel Log yang bisa di-scroll */}
             <div className="flex-1 overflow-y-auto pr-2">
                <table className="w-full text-left border-collapse">
                  <thead>
@@ -318,7 +269,6 @@ function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
                    </tr>
                  </thead>
                  <tbody>
-                   {/* Kita gunakan data recent_activities sebagai placeholder sementara */}
                    {dashboardData.recent_activities.map((log: any, idx: number) => (
                      <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
                        <td className="py-4 text-sm text-gray-300">{log.time}</td>
@@ -338,6 +288,46 @@ function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
           </div>
         </div>
       )}
+
+    </div>
+  );
+}
+
+// Komponen Reusable (BERSIH DARI MODAL)
+function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: (e: React.MouseEvent) => void }) {
+  return (
+    <a href="#" onClick={onClick} className={`flex items-center gap-4 px-4 py-3 rounded-xl transition ${active ? 'bg-[#FFD166] text-[#0D1B2A] font-bold shadow-[0_0_15px_rgba(255,209,102,0.3)]' : 'text-gray-400 hover:text-[#E0E1DD] hover:bg-white/5'}`}>
+      {icon}
+      <span className="hidden lg:block">{label}</span>
+    </a>
+  );
+}
+
+function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition backdrop-blur-md flex flex-col relative overflow-hidden">
+      <div className={`absolute top-0 left-0 w-full h-1 ${isDanger ? 'bg-red-500 shadow-[0_0_10px_red]' : status === 'Suspicious' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+      
+      <div className="flex justify-between items-start mb-4 mt-2">
+        <div className="bg-[#0D1B2A] px-3 py-1 rounded-lg text-xs font-mono border border-white/5 text-gray-300">
+          {ip}
+        </div>
+        <div className={`text-xs font-bold px-2 py-1 rounded-full ${isDanger ? 'bg-red-500/20 text-red-400' : status === 'Suspicious' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
+          {time}
+        </div>
+      </div>
+      
+      <h3 className="font-bold text-lg truncate mb-1">{user}</h3>
+      
+      <div className="flex justify-between items-end mt-4 pt-4 border-t border-white/10">
+        <div>
+          <p className="text-xs text-gray-400">Trust Score</p>
+          <p className="font-bold text-xl">{score}</p>
+        </div>
+        <div className={`text-sm font-semibold ${isDanger ? 'text-red-400' : status === 'Suspicious' ? 'text-yellow-400' : 'text-green-400'}`}>
+          {status}
+        </div>
+      </div>
     </div>
   );
 }
