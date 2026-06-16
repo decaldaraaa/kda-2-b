@@ -3,6 +3,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
+import bcrypt
 
 # Load environment variables
 load_dotenv()
@@ -57,3 +58,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     pwd_bytes = plain_password.encode('utf-8')
     hashed_bytes = hashed_password.encode('utf-8')
     return bcrypt.checkpw(pwd_bytes, hashed_bytes)
+
+def get_password_hash(password: str):
+    # Hash password menggunakan Bcrypt dengan cost standard (12)
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password=pwd_bytes, salt=salt)
+    return hashed_password.decode('utf-8')
