@@ -80,6 +80,12 @@ export default function LiveTraffic() {
               <span className="text-gray-400 text-sm hidden md:block">| Memantau arus data masuk dari gateway FastAPI</span>
             </div>
             
+            <div className="flex items-center bg-[#0D1B2A] border border-white/10 rounded-full px-4 py-2 w-64">
+              <Search className="text-gray-400 mr-2" size={16} />
+              <input type="text" placeholder="Filter stream..." className="bg-transparent border-none outline-none text-[#E0E1DD] w-full text-sm placeholder-gray-500" />
+            </div>
+          </div>
+
           {/* Terminal-style Data Stream */}
           <div className="flex-1 bg-[#050B14] border border-white/10 rounded-2xl overflow-hidden flex flex-col relative shadow-2xl">
             {/* Header Tabel */}
