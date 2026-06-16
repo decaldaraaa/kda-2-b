@@ -42,10 +42,11 @@ export default function UserAccess() {
     u.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // 1. ACTION: Edit Role
+// 1. ACTION: Edit Role
   const handleUpdateRole = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${selectedUser.id}/role`, {
+      // PERHATIKAN: Ada '/' tambahan setelah 'role/'
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${selectedUser.id}/role/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_role: newRole })
@@ -53,27 +54,37 @@ export default function UserAccess() {
       if (res.ok) {
         setAlertMessage(`✅ Role ${selectedUser.username} berhasil diubah menjadi ${newRole}`);
         setIsEditRoleOpen(false);
-        fetchUsers(); // Refresh data
+        fetchUsers(); // Refresh tabel secara instan
+      } else {
+        setAlertMessage("❌ Gagal merubah role. Cek koneksi server.");
       }
     } catch (error) {
-      setAlertMessage("❌ Gagal merubah role.");
+      setAlertMessage("❌ Terjadi kesalahan jaringan.");
     }
     setTimeout(() => setAlertMessage(""), 4000);
   };
 
   // 2. ACTION: Reset Password
   const handleResetPassword = async (user: any) => {
-    if(!confirm(`Anda yakin ingin me-reset sandi akun ${user.username}?`)) return;
+    if(!confirm(`Anda yakin ingin me-reset sandi akun ${user.username}?\n\nSistem akan mengacak sandi baru dan mengirimkannya ke email: ${user.email}`)) return;
+    
+    setAlertMessage(`⏳ Sedang mengacak sandi dan mengirim email ke ${user.username}...`);
+    
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.id}/reset-password`, { method: 'POST' });
+      // PERHATIKAN: Ada '/' tambahan di akhir URL
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.id}/reset-password/`, { 
+        method: 'POST' 
+      });
+      
       if (res.ok) {
-        const data = await res.json();
-        // Untuk keperluan demo, kita tampilkan sandi baru di alert
-        alert(`SUKSES RESET SANDI!\n\nUser: ${user.username}\nSandi Baru: ${data.new_password}\n\nPastikan untuk mencatatnya.`);
+        setAlertMessage(`✅ Berhasil! Sandi sementara telah dikirim ke email ${user.username}.`);
+      } else {
+        setAlertMessage(`❌ Gagal mereset sandi. Server menolak permintaan.`);
       }
     } catch (error) {
-      alert("Gagal mereset sandi");
+      setAlertMessage(`❌ Terjadi kesalahan jaringan saat mencoba mereset sandi.`);
     }
+    setTimeout(() => setAlertMessage(""), 5000);
   };
 
   // 3. ACTION: Delete Account

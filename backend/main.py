@@ -471,14 +471,13 @@ async def send_security_warning(
     
     return {"status": "success", "message": f"Instruksi pengiriman email peringatan ke {user.username} telah dieksekusi."}
 
-# 1. Endpoint: Ambil Semua Pengguna & Sub-Query Last Login
+# 1. Endpoint: Ambil Semua Pengguna
 @app.get("/api/users/")
 def get_all_users(db: Session = Depends(get_db)):
     users = db.query(models.User).order_by(models.User.id.asc()).all()
     result = []
     
     for u in users:
-        # Tarik waktu login terakhir dari tabel LoginHistory
         last_log = db.query(models.LoginHistory).filter(
             models.LoginHistory.user_id == u.id
         ).order_by(models.LoginHistory.login_time.desc()).first()
@@ -490,13 +489,13 @@ def get_all_users(db: Session = Depends(get_db)):
             "username": u.username,
             "email": u.email,
             "role": u.role,
-            "status": "Active", # Fallback karena kolom status belum ada di DB
+            "status": "Active",
             "last_login": last_login_str
         })
     return result
 
-# 2. Endpoint: Ubah Role (RBAC)
-@app.put("/api/users/{user_id}/role")
+# 2. Endpoint: Ubah Role (Perhatikan penambahan '/' di akhir URL untuk mencegah redirect)
+@app.put("/api/users/{user_id}/role/")
 def update_user_role(user_id: int, req: RoleUpdate, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -506,9 +505,9 @@ def update_user_role(user_id: int, req: RoleUpdate, db: Session = Depends(get_db
     db.commit()
     return {"message": f"Role berhasil diubah menjadi {req.new_role}"}
 
-# 3. Endpoint: Reset Password (Auto-Generate)
-@app.post("/api/users/{user_id}/reset-password")
-def reset_user_password(user_id: int, db: Session = Depends(get_db)):
+# 3. Endpoint: Reset Password & Kirim Email Temporary
+@app.post("/api/users/{user_id}/reset-password/")
+def reset_user_password(user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User tidak ditemukan")
@@ -517,22 +516,52 @@ def reset_user_password(user_id: int, db: Session = Depends(get_db)):
     characters = string.ascii_letters + string.digits
     new_password = ''.join(random.choice(characters) for i in range(8))
     
-    # Hash password baru dan simpan
+    # Hash password baru dan simpan (Pastikan get_password_hash ada di file security.py Anda)
     user.password_hash = security.get_password_hash(new_password)
     db.commit()
     
-    return {"message": "Password berhasil direset", "new_password": new_password}
+    # Fungsi internal untuk mengirim email sandi sementara via Brevo
+    def send_reset_email(receiver_email: str, username: str, temp_pass: str):
+        api_key = os.getenv("BREVO_API_KEY")
+        sender_email = os.getenv("EMAIL_SENDER", "kuntohidayat20@gmail.com") 
+        if not api_key: return
 
-# 4. Endpoint: Hapus Akun (Nonaktif Permanen)
-@app.delete("/api/users/{user_id}")
+        url = "https://api.brevo.com/v3/smtp/email"
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; max-w-md;">
+            <div style="text-align: center; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; margin-bottom: 20px;">
+                <h2 style="color: #4CAF50; margin: 0;">🔑 Reset Sandi Berhasil</h2>
+            </div>
+            <p>Halo <strong>{username}</strong>,</p>
+            <p>Sistem administrator baru saja mereset sandi Anda karena alasan keamanan.</p>
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0 0 10px 0;">Sandi Sementara Anda:</p>
+                <span style="font-size: 24px; font-weight: bold; color: #d9534f; letter-spacing: 2px;">{temp_pass}</span>
+            </div>
+            <p>Harap segera login menggunakan sandi di atas.</p>
+        </div>
+        """
+        payload = {
+            "sender": {"name": "SECURE.IT IAM", "email": sender_email},
+            "to": [{"email": receiver_email}],
+            "subject": "Kredensial Baru Akun SECURE.IT",
+            "htmlContent": html_content
+        }
+        headers = {"accept": "application/json", "api-key": api_key, "content-type": "application/json"}
+        requests.post(url, json=payload, headers=headers)
+
+    background_tasks.add_task(send_reset_email, user.email, user.username, new_password)
+    
+    return {"message": "Password berhasil direset dan email telah dikirim"}
+
+# 4. Endpoint: Hapus Akun
+@app.delete("/api/users/{user_id}/")
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User tidak ditemukan")
     
-    # Hapus log histori yang terkait agar tidak terjadi error foreign key constraint
     db.query(models.LoginHistory).filter(models.LoginHistory.user_id == user_id).delete()
-    
     db.delete(user)
     db.commit()
     return {"message": "Akun berhasil dihapus permanen"}
