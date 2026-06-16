@@ -43,24 +43,29 @@ export default function SuperAdminLayout({
           S.IT
         </div>
 
-        <nav className="flex flex-col gap-6 w-full">
-          {/* Logika Active otomatis mendeteksi dari URL Pathname */}
-          <Link href="/dashboard" className="w-full">
-            <NavItem icon={<Grid size={24} />} label="Dashboard" active={pathname === '/dashboard'} />
-          </Link>
-          <Link href="/live-traffic" className="w-full">
-            <NavItem icon={<Activity size={24} />} label="Live Traffic" active={pathname === '/live-traffic'} />
-          </Link>
-          <Link href="/threat-logs" className="w-full">
-            <NavItem icon={<ShieldAlert size={24} />} label="Threat Logs" active={pathname === '/threat-logs'} />
-          </Link>
-          <Link href="/user-access" className="w-full">
-            <NavItem icon={<Users size={24} />} label="User Access" active={pathname === '/user-access'} />
-          </Link>
-          <Link href="/settings" className="w-full">
-            <NavItem icon={<Settings size={24} />} label="Settings" active={pathname === '/settings'} />
-          </Link>
-        </nav>
+          <nav className="flex flex-col gap-6 w-full">
+            
+            <Link href="/dashboard" className="w-full">
+              <NavItem icon={<Grid size={24} />} label="Dashboard" active={pathname === '/dashboard'} />
+            </Link>
+
+            <Link href="/live-traffic" className="w-full">
+              <NavItem icon={<Activity size={24} />} label="Live Traffic" active={pathname === '/live-traffic'} />
+            </Link>
+
+            <Link href="/threat-logs" className="w-full">
+              <NavItem icon={<ShieldAlert size={24} />} label="Threat Logs" active={pathname === '/threat-logs'} />
+            </Link>
+
+            <Link href="/user-access" className="w-full">
+              <NavItem icon={<Users size={24} />} label="User Access" active={pathname === '/user-access'} />
+            </Link>
+
+            <Link href="/settings" className="w-full">
+              <NavItem icon={<Settings size={24} />} label="Settings" active={pathname === '/settings'} />
+            </Link>
+
+          </nav>
 
         <div className="mt-auto w-full">
           <NavItem icon={<LogOut size={24} />} label="Logout" onClick={handleLogout} />
