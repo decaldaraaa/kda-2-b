@@ -381,7 +381,7 @@ def get_dashboard_stats(
             "user": user.username if user else "UNKNOWN",
             "score": log.trust_score,
             "status": log.status,
-            "time": "Recent" # Sesuaikan jika DB Anda sudah merekam attempt_time
+            "time": log.login_time.strftime("%d %b, %H:%M") if log.login_time else "Unknown"
         })
         
     return {

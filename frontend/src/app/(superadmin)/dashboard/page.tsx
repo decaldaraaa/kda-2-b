@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link'; // Tambahkan ini
 import React, { useEffect, useState } from 'react';
 import { Search, Bell, ShieldAlert, X, Download, Calendar } from 'lucide-react';
 // Ikon navigasi dihapus karena sudah pindah ke layout
@@ -17,7 +18,6 @@ export default function Dashboard() {
 
   // State untuk mengontrol visibilitas Pop-up
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showLogsModal, setShowLogsModal] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -70,9 +70,12 @@ export default function Dashboard() {
             <ShieldAlert size={18} className="text-[#FFD166]" />
             <span className="text-sm font-semibold">System Secure</span>
           </div>
-          <button className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition">
-            <Bell size={20} />
-          </button>
+            <Link href="/notifications">
+              <button className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition relative">
+                <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0D1B2A]"></div>
+                <Bell size={20} />
+              </button>
+            </Link>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FFD166] to-orange-500 border-2 border-[#0D1B2A]"></div>
             <div className="hidden md:block text-sm">
@@ -94,19 +97,20 @@ export default function Dashboard() {
               <p className="text-gray-400 mb-8 max-w-md">
                 Mesin Fuzzy Logic Mamdani sedang aktif menganalisis pola masuk, mendeteksi perpindahan IP, dan mencegah serangan siber otomatis.
               </p>
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setShowLogsModal(true)} 
-                  className="bg-[#FFD166] text-[#0D1B2A] px-6 py-3 rounded-full font-bold hover:bg-yellow-500 transition"
-                >
-                  View Full Logs
-                </button>
-                <button 
-                  onClick={() => setShowExportModal(true)} 
-                  className="bg-white/10 border border-white/20 px-6 py-3 rounded-full font-bold hover:bg-white/20 transition backdrop-blur-md"
-                >
-                  Export Report
-                </button>
+                <div className="flex gap-4">
+                {/* REVISI: Menghapus onClick modal dan menggantinya dengan navigasi rute */}
+                <Link href="/threat-logs">
+                  <button className="bg-[#FFD166] text-[#0D1B2A] px-6 py-3 rounded-full font-bold hover:bg-yellow-500 transition">
+                    View Full Logs
+                  </button>
+                </Link>
+                <Link href="/export-report">
+                  <button 
+                    className="bg-white/10 border border-white/20 px-6 py-3 rounded-full font-bold hover:bg-white/20 transition backdrop-blur-md"
+                  >
+                    Export Report
+                  </button>
+                </Link>
               </div>
             </div>
             <div className="absolute right-0 top-0 w-64 h-64 bg-[#FFD166]/20 rounded-full blur-[80px]"></div>
@@ -208,49 +212,6 @@ export default function Dashboard() {
             <button className="w-full bg-[#FFD166] text-[#0D1B2A] font-bold py-3 rounded-xl hover:bg-yellow-500 transition mt-auto">
               Generate Export
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL VIEW FULL LOGS */}
-      {showLogsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0D1B2A] border border-white/10 rounded-3xl w-full max-w-5xl h-[80vh] p-6 relative shadow-2xl flex flex-col">
-            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-              <h2 className="text-2xl font-bold text-white">System <span className="text-[#FFD166]">Threat Logs</span></h2>
-              <button onClick={() => setShowLogsModal(false)} className="text-gray-400 hover:text-white transition">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2">
-               <table className="w-full text-left border-collapse">
-                 <thead>
-                   <tr className="text-gray-400 text-sm border-b border-white/10">
-                     <th className="pb-3 font-medium">TIMESTAMP</th>
-                     <th className="pb-3 font-medium">IP ADDRESS</th>
-                     <th className="pb-3 font-medium">USERNAME</th>
-                     <th className="pb-3 font-medium">TRUST SCORE</th>
-                     <th className="pb-3 font-medium">STATUS</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   {dashboardData.recent_activities.map((log: any, idx: number) => (
-                     <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
-                       <td className="py-4 text-sm text-gray-300">{log.time}</td>
-                       <td className="py-4 text-sm font-mono">{log.ip}</td>
-                       <td className="py-4 text-sm font-bold">{log.user}</td>
-                       <td className="py-4 text-sm font-bold text-[#FFD166]">{log.score}</td>
-                       <td className="py-4 text-sm">
-                         <span className={`px-2 py-1 rounded-md text-xs font-bold ${log.status === 'Untrusted' ? 'bg-red-500/20 text-red-400' : log.status === 'Suspicious' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
-                           {log.status}
-                         </span>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-            </div>
           </div>
         </div>
       )}
