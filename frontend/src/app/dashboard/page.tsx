@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Grid, Activity, ShieldAlert, Users, Settings, LogOut } from 'lucide-react';
+import { Search, Bell, Grid, Activity, ShieldAlert, Users, Settings, LogOut, X, Download, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
   const [adminName, setAdminName] = useState("SuperAdmin");
@@ -58,6 +58,10 @@ export default function Dashboard() {
 
   // [UPDATE] Memasukkan debouncedSearch ke dalam array dependency agar useEffect dijalankan ulang saat pencarian berubah
   }, [debouncedSearch]); 
+
+  // [BARU] State untuk mengontrol visibilitas Pop-up
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -135,8 +139,18 @@ export default function Dashboard() {
                   Mesin Fuzzy Logic Mamdani sedang aktif menganalisis pola masuk, mendeteksi perpindahan IP, dan mencegah serangan siber otomatis.
                 </p>
                 <div className="flex gap-4">
-                  <button className="bg-[#FFD166] text-[#0D1B2A] px-6 py-3 rounded-full font-bold hover:bg-yellow-500 transition">View Full Logs</button>
-                  <button className="bg-white/10 border border-white/20 px-6 py-3 rounded-full font-bold hover:bg-white/20 transition backdrop-blur-md">Export Report</button>
+                  <button 
+                    onClick={() => setShowLogsModal(true)} 
+                    className="bg-[#FFD166] text-[#0D1B2A] px-6 py-3 rounded-full font-bold hover:bg-yellow-500 transition"
+                  >
+                    View Full Logs
+                  </button>
+                  <button 
+                    onClick={() => setShowExportModal(true)} 
+                    className="bg-white/10 border border-white/20 px-6 py-3 rounded-full font-bold hover:bg-white/20 transition backdrop-blur-md"
+                  >
+                    Export Report
+                  </button>
                 </div>
               </div>
               <div className="absolute right-0 top-0 w-64 h-64 bg-[#FFD166]/20 rounded-full blur-[80px]"></div>
@@ -245,6 +259,85 @@ function LogCard({ ip, user, score, status, time, isDanger = false }: any) {
           {status}
         </div>
       </div>
+      {/* ================= MODAL EXPORT REPORT ================= */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#0D1B2A] border border-white/10 rounded-3xl w-full max-w-md p-6 relative shadow-2xl flex flex-col">
+            <button onClick={() => setShowExportModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+              <X size={24} />
+            </button>
+            
+            <h2 className="text-2xl font-bold text-[#FFD166] mb-2">Export Security Data</h2>
+            <p className="text-gray-400 text-sm mb-6">Unduh log analisis mesin Fuzzy Logic untuk keperluan audit.</p>
+            
+            <div className="flex flex-col gap-4 mb-8">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-white/10 transition">
+                <Calendar className="text-blue-400" size={24} />
+                <div>
+                  <h3 className="font-bold">Last 7 Days (PDF)</h3>
+                  <p className="text-xs text-gray-400">Executive summary report</p>
+                </div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-white/10 transition">
+                <Download className="text-green-400" size={24} />
+                <div>
+                  <h3 className="font-bold">Full Raw Data (CSV)</h3>
+                  <p className="text-xs text-gray-400">Seluruh riwayat untuk analisis lanjutan</p>
+                </div>
+              </div>
+            </div>
+            
+            <button className="w-full bg-[#FFD166] text-[#0D1B2A] font-bold py-3 rounded-xl hover:bg-yellow-500 transition mt-auto">
+              Generate Export
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL VIEW FULL LOGS (TIDAK DISARANKAN UNTUK PRODUCTION) ================= */}
+      {showLogsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#0D1B2A] border border-white/10 rounded-3xl w-full max-w-5xl h-[80vh] p-6 relative shadow-2xl flex flex-col">
+            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+              <h2 className="text-2xl font-bold text-white">System <span className="text-[#FFD166]">Threat Logs</span></h2>
+              <button onClick={() => setShowLogsModal(false)} className="text-gray-400 hover:text-white transition">
+                <X size={24} />
+              </button>
+            </div>
+            
+            {/* Area Tabel Log yang bisa di-scroll */}
+            <div className="flex-1 overflow-y-auto pr-2">
+               <table className="w-full text-left border-collapse">
+                 <thead>
+                   <tr className="text-gray-400 text-sm border-b border-white/10">
+                     <th className="pb-3 font-medium">TIMESTAMP</th>
+                     <th className="pb-3 font-medium">IP ADDRESS</th>
+                     <th className="pb-3 font-medium">USERNAME</th>
+                     <th className="pb-3 font-medium">TRUST SCORE</th>
+                     <th className="pb-3 font-medium">STATUS</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {/* Kita gunakan data recent_activities sebagai placeholder sementara */}
+                   {dashboardData.recent_activities.map((log: any, idx: number) => (
+                     <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
+                       <td className="py-4 text-sm text-gray-300">{log.time}</td>
+                       <td className="py-4 text-sm font-mono">{log.ip}</td>
+                       <td className="py-4 text-sm font-bold">{log.user}</td>
+                       <td className="py-4 text-sm font-bold text-[#FFD166]">{log.score}</td>
+                       <td className="py-4 text-sm">
+                         <span className={`px-2 py-1 rounded-md text-xs font-bold ${log.status === 'Untrusted' ? 'bg-red-500/20 text-red-400' : log.status === 'Suspicious' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
+                           {log.status}
+                         </span>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
