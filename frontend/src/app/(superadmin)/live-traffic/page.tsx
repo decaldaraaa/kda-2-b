@@ -143,6 +143,5 @@ export default function LiveTraffic() {
 
         </div>
       </main>
-    </div>
   );
 }
