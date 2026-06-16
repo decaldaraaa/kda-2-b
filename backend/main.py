@@ -19,6 +19,8 @@ import requests
 from fastapi import Query
 from typing import Optional
 from sqlalchemy import or_
+from pydantic import BaseModel
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +36,10 @@ app.add_middleware(
     allow_methods=["*"], 
     allow_headers=["*"],
 )
+
+class WarningRequest(BaseModel):
+    username: str
+    ip_address: str
 
 # --- 1. SKEMA PYDANTIC ---
 class UserCreate(BaseModel):
@@ -395,3 +401,68 @@ def get_dashboard_stats(
         "average_score": avg_score,
         "recent_activities": activities
     }
+
+@app.post("/api/send-warning/")
+async def send_security_warning(
+    req: WarningRequest, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    # 1. Cari email pengguna berdasarkan username
+    user = db.query(models.User).filter(models.User.username == req.username).first()
+    if not user or not user.email:
+        raise HTTPException(status_code=404, detail="Pengguna atau Email tidak ditemukan")
+
+    # 2. Fungsi internal untuk mengirim email via Brevo
+    def send_warning_task(receiver_email: str, username: str, ip: str):
+        api_key = os.getenv("BREVO_API_KEY")
+        # Menggunakan fallback yang sama seperti fitur OTP
+        sender_email = os.getenv("EMAIL_SENDER", "kuntohidayat20@gmail.com") 
+
+        if not api_key:
+            print("❌ CRITICAL: BREVO_API_KEY tidak ditemukan!")
+            return
+
+        url = "https://api.brevo.com/v3/smtp/email"
+        
+        # Template HTML Profesional untuk Security Alert
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-w-md; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <div style="text-align: center; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-bottom: 20px;">
+                <h2 style="color: #d9534f; margin: 0;">⚠️ Peringatan Keamanan Akun</h2>
+            </div>
+            <p>Halo <strong>{username}</strong>,</p>
+            <p>Sistem <b>Fuzzy Logic SECURE.IT</b> kami baru saja mendeteksi pola aktivitas autentikasi yang mencurigakan (Anomali) pada akun Anda.</p>
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0;"><strong>Rincian Aktivitas:</strong></p>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li><b>IP Address Target:</b> {ip}</li>
+                    <li><b>Tingkat Ancaman:</b> Suspicious / Untrusted</li>
+                </ul>
+            </div>
+            <p>Jika Anda tidak merasa melakukan aktivitas ini, kami merekomendasikan Anda untuk segera mengganti kata sandi atau menghubungi SuperAdmin.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0 20px 0;">
+            <p style="font-size: 11px; color: #777; text-align: center;">Pesan ini dihasilkan secara otomatis oleh modul SIEM SECURE.IT.</p>
+        </div>
+        """
+
+        payload = {
+            "sender": {"name": "SECURE.IT Forensics", "email": sender_email},
+            "to": [{"email": receiver_email}],
+            "subject": "⚠️ SECURITY ALERT: Upaya Login Mencurigakan",
+            "htmlContent": html_content
+        }
+        
+        headers = {
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json"
+        }
+        
+        # Eksekusi pengiriman
+        requests.post(url, json=payload, headers=headers)
+
+    # 3. Lemparkan ke Background Task agar server tidak menahan response ke Frontend
+    background_tasks.add_task(send_warning_task, user.email, user.username, req.ip_address)
+    
+    return {"status": "success", "message": f"Instruksi pengiriman email peringatan ke {user.username} telah dieksekusi."}

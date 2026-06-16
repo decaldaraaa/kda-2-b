@@ -78,19 +78,46 @@ export default function ThreatLogs() {
     document.body.removeChild(link);
   };
 
-  // FUNGSI 4: Simulasi Action
-  const handleAction = (actionType: string, user: string, ip: string) => {
-    setOpenActionIdx(null); // Tutup menu
+// FUNGSI 4: Real Action (Kirim Email & Blacklist)
+  const handleAction = async (actionType: string, user: string, ip: string) => {
+    setOpenActionIdx(null); // Tutup menu dropdown terlebih dahulu
+
     if (actionType === 'warn') {
-      setActionMessage(`✅ Email peringatan keamanan sedang dikirim ke ${user}...`);
-    } else {
+      // 1. Tampilkan status loading
+      setActionMessage(`⏳ Mengirim instruksi email peringatan ke ${user}...`);
+
+      try {
+        // 2. Tembak Endpoint Backend
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/send-warning/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: user,
+            ip_address: ip
+          })
+        });
+
+        // 3. Evaluasi Respons
+        if (response.ok) {
+          setActionMessage(`✅ Tindakan Berhasil! Email peringatan telah terkirim ke ${user}.`);
+        } else {
+          setActionMessage(`❌ Gagal! Pengguna ${user} mungkin tidak memiliki email valid.`);
+        }
+      } catch (error) {
+        setActionMessage(`❌ Terjadi kesalahan jaringan saat menghubungi server.`);
+      }
+
+    } else if (actionType === 'block') {
+      // Untuk blokir IP, kita biarkan sebagai simulasi UI dulu kecuali Anda punya tabel Blacklist di DB
       setActionMessage(`🛑 IP ${ip} telah dimasukkan ke dalam Blacklist Firewall.`);
     }
     
-    // Hilangkan notifikasi setelah 3 detik
-    setTimeout(() => setActionMessage(""), 3000);
+    // Hilangkan notifikasi dari layar setelah 4 detik
+    setTimeout(() => setActionMessage(""), 4000);
   };
-
+  
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
       <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-red-600/10 rounded-full blur-[120px] pointer-events-none"></div>
