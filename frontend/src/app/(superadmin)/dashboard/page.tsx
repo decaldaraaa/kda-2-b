@@ -104,7 +104,7 @@ export default function Dashboard() {
                     View Full Logs
                   </button>
                 </Link>
-                <Link href="/export-report">
+                <Link href="/threat-logs">
                   <button 
                     className="bg-white/10 border border-white/20 px-6 py-3 rounded-full font-bold hover:bg-white/20 transition backdrop-blur-md"
                   >

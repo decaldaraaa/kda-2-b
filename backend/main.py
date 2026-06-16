@@ -340,6 +340,7 @@ def verify_mfa_code(req: MFAVerify, db: Session = Depends(get_db)):
 @app.get("/api/dashboard-stats/")
 def get_dashboard_stats(
     q: Optional[str] = Query(None, description="Query pencarian username atau status"),
+    days: Optional[int] = Query(None, description="Filter rentang hari ke belakang"), # [BARU] Parameter dari dropdown frontend
     db: Session = Depends(get_db)
 ):
     # 1. Inisialisasi kueri dengan operasi JOIN (LoginHistory + User)
@@ -347,7 +348,7 @@ def get_dashboard_stats(
         models.User, models.LoginHistory.user_id == models.User.id
     )
     
-    # 2. Terapkan filter pencarian jika ada input dari Frontend
+    # 2. Terapkan filter pencarian teks jika ada input dari Frontend
     if q:
         search_pattern = f"%{q}%"
         query = query.filter(
@@ -357,14 +358,19 @@ def get_dashboard_stats(
             )
         )
         
-    # 3. Hitung metrik dinamis (Total & Rata-rata Skor) dari data yang terfilter
+    # [BARU] 3. Terapkan filter batas waktu jika user memilih dari dropdown
+    if days:
+        time_threshold = datetime.datetime.now() - datetime.timedelta(days=days)
+        query = query.filter(models.LoginHistory.login_time >= time_threshold)
+        
+    # 4. Hitung metrik dinamis (Total & Rata-rata Skor) dari data yang terfilter
     total_logs = query.count()
     
     avg_score = query.with_entities(func.avg(models.LoginHistory.trust_score)).scalar()
     avg_score = round(avg_score, 1) if avg_score else 0.0
     
-    # 4. Ambil 30 aktivitas terbaru dari hasil pencarian
-    recent_records = query.order_by(models.LoginHistory.id.desc()).limit(30).all()
+    # [UPDATE] 5. Batas pencarian dinaikkan ke 200 agar fitur Pagination frontend memiliki data untuk dipotong-potong
+    recent_records = query.order_by(models.LoginHistory.id.desc()).limit(200).all()
     
     activities = []
     # SQLAlchemy mengembalikan Tuple (log, user) karena kita melakukan JOIN
