@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Shield, Zap, Lock, ChevronRight, Users, Fingerprint } from 'lucide-react';
+import { Shield, Zap, Lock, ChevronRight, Users, Fingerprint, LockKeyhole } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -133,6 +133,11 @@ export default function HomePage() {
             icon={<Users size={32} className="text-[#FFD166]" />}
             title="Real-Time Monitoring"
             desc="Pantau aktivitas pengguna secara real-time dan dapatkan notifikasi langsung tentang aktivitas mencurigakan."
+          />
+          <FeatureCard 
+            icon={<LockKeyhole size={32} className="text-[#FFD166]" />}
+            title="Bcrypt Hashing"
+            desc="Menggunakan algoritma Bcrypt untuk menghash kata sandi dengan keamanan tingkat tinggi."
           />
         </div>
       </section>
