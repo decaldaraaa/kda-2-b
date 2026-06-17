@@ -121,7 +121,6 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold mb-6">Recent Suspicious Activities</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               
-              //ubah bagian ini untuk dibatasi cardnya muncul maximal 20 kali
               {dashboardData.recent_activities.length > 0 ? (
                 dashboardData.recent_activities.slice(0, 20).map((act: any, idx: number) => (
                   <LogCard 
