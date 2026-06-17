@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Shield, Zap, Lock, ChevronRight, Users } from 'lucide-react';
+import { Shield, Zap, Lock, ChevronRight, Users, Fingerprint } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -124,12 +124,15 @@ export default function HomePage() {
             title="Stateless JWT"
             desc="Otorisasi sesi aman dan cepat menggunakan JSON Web Token dengan algoritma penandatanganan HS256."
           />
-          
-          //tambahkan fitur mfa
           <FeatureCard 
-            icon={<Lock size={32} className="text-[#FFD166]" />}
+            icon={<Fingerprint size={32} className="text-[#FFD166]" />}
             title="Multi-Factor Authentication (MFA)"
             desc="Tingkatkan keamanan akun Anda dengan autentikasi dua faktor yang memerlukan lebih dari satu bentuk verifikasi."
+          />
+          <FeatureCard 
+            icon={<Users size={32} className="text-[#FFD166]" />}
+            title="Real-Time Monitoring"
+            desc="Pantau aktivitas pengguna secara real-time dan dapatkan notifikasi langsung tentang aktivitas mencurigakan."
           />
         </div>
       </section>
