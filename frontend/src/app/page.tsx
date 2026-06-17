@@ -124,6 +124,13 @@ export default function HomePage() {
             title="Stateless JWT"
             desc="Otorisasi sesi aman dan cepat menggunakan JSON Web Token dengan algoritma penandatanganan HS256."
           />
+          
+          //tambahkan fitur mfa
+          <FeatureCard 
+            icon={<Lock size={32} className="text-[#FFD166]" />}
+            title="Multi-Factor Authentication (MFA)"
+            desc="Tingkatkan keamanan akun Anda dengan autentikasi dua faktor yang memerlukan lebih dari satu bentuk verifikasi."
+          />
         </div>
       </section>
 
